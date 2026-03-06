@@ -9,6 +9,8 @@ export interface InfrastructureAsset {
   location: string;
   status: InfrastructureStatus;
   healthScore: number;
+  lat?: number;
+  lng?: number;
   createdAt?: any;
 }
 

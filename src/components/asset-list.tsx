@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -90,9 +91,9 @@ export default function AssetList({ limit }: AssetListProps) {
     if (!deletingAssetId) return;
     try {
       await deleteDoc(doc(db, "infrastructure", deletingAssetId));
-      toast({ title: "Asset Deleted", description: "The infrastructure record has been removed." });
+      toast({ title: "Asset Deleted", description: "The record has been permanently removed from the network." });
     } catch (e) {
-      toast({ variant: "destructive", title: "Delete Failed", description: "Unable to remove the record." });
+      toast({ variant: "destructive", title: "Delete Failed", description: "System error while attempting to purge record." });
     } finally {
       setDeletingAssetId(null);
     }
@@ -106,11 +107,12 @@ export default function AssetList({ limit }: AssetListProps) {
       const assetRef = doc(db, "infrastructure", editingAsset.id);
       const { id, ...updateData } = editingAsset;
       await updateDoc(assetRef, updateData);
-      toast({ title: "Asset Updated", description: `${editingAsset.name} has been synchronized.` });
+      toast({ title: "Asset Updated Successfully", description: `${editingAsset.name} has been resynchronized with current metrics.` });
       setEditingAsset(null);
     } catch (e) {
-      toast({ variant: "destructive", title: "Update Failed", description: "Communication error with database." });
+      toast({ variant: "destructive", title: "Update Failed", description: "Transmission error with central database." });
     } finally {
+      // Fix: Ensure loading state is reset
       setIsUpdating(false);
     }
   };
@@ -258,7 +260,11 @@ export default function AssetList({ limit }: AssetListProps) {
               </div>
               <DialogFooter>
                 <Button type="submit" className="w-full btn-gradient" disabled={isUpdating}>
-                  {isUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : "Update Infrastructure"}
+                  {isUpdating ? (
+                    <span className="flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" /> Synchronizing...
+                    </span>
+                  ) : "Update Infrastructure"}
                 </Button>
               </DialogFooter>
             </form>

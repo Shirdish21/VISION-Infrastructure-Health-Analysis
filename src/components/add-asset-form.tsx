@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -23,20 +24,27 @@ export default function AddAssetForm() {
 
     const form = event.currentTarget;
     const formData = new FormData(form);
+    
+    // Chennai default center for demo coords if not provided
+    const DEFAULT_LAT = 13.0827;
+    const DEFAULT_LNG = 80.2707;
+
     const assetData = {
       name: formData.get("name") as string,
       type: formData.get("type") as string,
       location: formData.get("location") as string,
       status: formData.get("status") as string,
       healthScore: healthScore,
+      lat: DEFAULT_LAT + (Math.random() - 0.5) * 0.1,
+      lng: DEFAULT_LNG + (Math.random() - 0.5) * 0.1,
       createdAt: serverTimestamp(),
     };
 
     try {
       await addDoc(collection(db, "infrastructure"), assetData);
       toast({ 
-        title: "Asset Registered", 
-        description: `${assetData.name} has been successfully added to the system.` 
+        title: "Asset Registered Successfully", 
+        description: `${assetData.name} has been onboarded to the smart city network.` 
       });
       form.reset();
       setHealthScore(100);
@@ -44,9 +52,10 @@ export default function AddAssetForm() {
       toast({ 
         variant: "destructive", 
         title: "Registration Failed", 
-        description: "Integration error. Please check database connectivity." 
+        description: "Integration error. Please check your network connectivity." 
       });
     } finally {
+      // Explicitly reset loading state to ensure button returns to normal
       setLoading(false);
     }
   }

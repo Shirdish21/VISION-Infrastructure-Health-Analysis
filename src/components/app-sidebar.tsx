@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -7,7 +8,8 @@ import {
   PlusCircle, 
   AlertCircle, 
   History,
-  Activity
+  Activity,
+  Map as MapIcon
 } from "lucide-react"
 
 import {
@@ -29,6 +31,7 @@ export function AppSidebar({ currentTab, onTabChange }: AppSidebarProps) {
   const items = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "assets", label: "Assets", icon: Database },
+    { id: "map", label: "Map View", icon: MapIcon },
     { id: "add", label: "Add Asset", icon: PlusCircle },
     { id: "report", label: "Report Issue", icon: AlertCircle },
     { id: "issues", label: "Issue Logs", icon: History },

@@ -1,7 +1,9 @@
+
 "use client";
 
 import { useState } from "react";
-import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
+import dynamic from "next/dynamic";
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import Header from "@/components/header";
 import DashboardOverview from "@/components/dashboard-overview";
@@ -10,6 +12,16 @@ import AddAssetForm from "@/components/add-asset-form";
 import IssueReporting from "@/components/issue-reporting";
 import ReportedIssues from "@/components/reported-issues";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
+
+// Dynamic import for the Map component to avoid SSR issues with Leaflet
+const MapView = dynamic(() => import("@/components/map-view"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full aspect-video bg-muted animate-pulse rounded-xl flex items-center justify-center border-2 border-dashed border-primary/20">
+      <p className="text-muted-foreground font-bold uppercase tracking-widest text-xs">Initializing Geographic Intelligence...</p>
+    </div>
+  ),
+});
 
 export default function Home() {
   const [currentTab, setCurrentTab] = useState("dashboard");
@@ -30,6 +42,7 @@ export default function Home() {
               {currentTab === 'add' && 'Register new assets into the smart intelligence network.'}
               {currentTab === 'report' && 'Submit citizen alerts for infrastructure damage or maintenance.'}
               {currentTab === 'issues' && 'Chronological log of all citizen reported infrastructure issues.'}
+              {currentTab === 'map' && 'Geospatial visualization of infrastructure deployment and health.'}
             </p>
           </div>
 
@@ -48,6 +61,10 @@ export default function Home() {
 
             <TabsContent value="add" className="max-w-2xl mx-auto focus-visible:outline-none outline-none">
               <AddAssetForm />
+            </TabsContent>
+
+            <TabsContent value="map" className="focus-visible:outline-none outline-none">
+              <MapView />
             </TabsContent>
 
             <TabsContent value="report" className="max-w-2xl mx-auto focus-visible:outline-none outline-none">
