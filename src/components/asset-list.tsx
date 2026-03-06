@@ -1,7 +1,7 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { db } from "@/lib/firebase";
 import { 
   collection, 
@@ -46,9 +46,14 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
-import { MapPin, ArrowRight, Edit2, Trash2, Loader2 } from "lucide-react";
+import { MapPin, ArrowRight, Edit2, Trash2, Loader2, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { InfrastructureAsset } from "@/lib/definitions";
+
+const LocationPicker = dynamic(() => import("./location-picker"), {
+  ssr: false,
+  loading: () => <div className="h-[200px] bg-muted animate-pulse rounded-lg" />
+});
 
 interface AssetListProps {
   limit?: number;
@@ -163,9 +168,16 @@ export default function AssetList({ limit }: AssetListProps) {
                     </span>
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-1.5 text-muted-foreground text-sm">
-                      <MapPin className="h-3.5 w-3.5" />
-                      {asset.location}
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-1.5 text-muted-foreground text-sm">
+                        <MapPin className={`h-3.5 w-3.5 ${(asset.lat && asset.lng) ? 'text-primary' : 'text-rose-500'}`} />
+                        {asset.location}
+                      </div>
+                      {(!asset.lat || !asset.lng) && (
+                        <div className="flex items-center gap-1 text-rose-500 text-[9px] font-bold uppercase tracking-tighter">
+                          <AlertCircle className="h-2 w-2" /> No Geo-Coordinates
+                        </div>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>
@@ -200,10 +212,10 @@ export default function AssetList({ limit }: AssetListProps) {
 
       {/* Edit Modal */}
       <Dialog open={!!editingAsset} onOpenChange={(open) => !open && setEditingAsset(null)}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Infrastructure</DialogTitle>
-            <DialogDescription>Modify existing asset parameters in the network.</DialogDescription>
+            <DialogDescription>Modify existing asset parameters and geographic deployment.</DialogDescription>
           </DialogHeader>
           {editingAsset && (
             <form onSubmit={handleUpdate} className="space-y-6 pt-4">
@@ -244,7 +256,7 @@ export default function AssetList({ limit }: AssetListProps) {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="edit-location">Location</Label>
+                  <Label htmlFor="edit-location">Sector / Area Description</Label>
                   <Input 
                     id="edit-location" 
                     value={editingAsset.location} 
@@ -252,6 +264,23 @@ export default function AssetList({ limit }: AssetListProps) {
                     className="bg-muted/30"
                   />
                 </div>
+
+                <div className="space-y-3">
+                  <Label className="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                    <MapPin className="h-3 w-3" /> Position on Map
+                  </Label>
+                  <LocationPicker 
+                    initialLat={editingAsset.lat || undefined} 
+                    initialLng={editingAsset.lng || undefined} 
+                    onLocationSelect={(lat, lng) => setEditingAsset({...editingAsset, lat, lng})}
+                  />
+                  {(editingAsset.lat && editingAsset.lng) && (
+                    <div className="text-[10px] font-mono text-center text-muted-foreground opacity-70">
+                      SAVED POS: {editingAsset.lat.toFixed(6)}, {editingAsset.lng.toFixed(6)}
+                    </div>
+                  )}
+                </div>
+
                 <div className="space-y-4 pt-2">
                    <div className="flex justify-between items-center">
                       <Label className="text-xs font-bold uppercase">Health Score</Label>

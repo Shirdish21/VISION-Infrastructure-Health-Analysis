@@ -5,6 +5,8 @@ import L from "leaflet";
 import { db } from "@/lib/firebase";
 import { collection, onSnapshot } from "firebase/firestore";
 import { Card } from "@/components/ui/card";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { AlertTriangle, MapPin } from "lucide-react";
 import type { InfrastructureAsset } from "@/lib/definitions";
 
 // Default center: Chennai, India
@@ -15,25 +17,15 @@ export default function MapView() {
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
   const [assets, setAssets] = useState<InfrastructureAsset[]>([]);
+  const [unmappedCount, setUnmappedCount] = useState(0);
 
   // 1. Fetch assets from Firestore
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "infrastructure"), (snapshot) => {
-      setAssets(
-        snapshot.docs.map((doc) => {
-          const data = doc.data() as InfrastructureAsset;
-          // Generate demo coordinates if missing
-          if (!data.lat || !data.lng) {
-            return {
-              ...data,
-              id: doc.id,
-              lat: DEFAULT_CENTER[0] + (Math.random() - 0.5) * 0.1,
-              lng: DEFAULT_CENTER[1] + (Math.random() - 0.5) * 0.1,
-            };
-          }
-          return { id: doc.id, ...data };
-        })
-      );
+      const allAssets = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as InfrastructureAsset));
+      const mapped = allAssets.filter(a => a.lat && a.lng);
+      setAssets(mapped);
+      setUnmappedCount(allAssets.length - mapped.length);
     });
     return unsub;
   }, []);
@@ -42,13 +34,11 @@ export default function MapView() {
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
-    // Fix: If a map instance already exists on this container, remove it
     if (mapInstanceRef.current) {
       mapInstanceRef.current.remove();
       mapInstanceRef.current = null;
     }
 
-    // Initialize Leaflet Map
     const map = L.map(mapContainerRef.current, {
       zoomControl: true,
       scrollWheelZoom: true,
@@ -56,15 +46,12 @@ export default function MapView() {
     
     mapInstanceRef.current = map;
 
-    // Add OpenStreetMap Layer
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      attribution: '&copy; OpenStreetMap contributors',
     }).addTo(map);
 
-    // Initialize markers layer
     markersLayerRef.current = L.layerGroup().addTo(map);
 
-    // Cleanup function to destroy map instance when component unmounts or re-renders
     return () => {
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
@@ -131,29 +118,41 @@ export default function MapView() {
   }, [assets]);
 
   return (
-    <Card className="w-full h-[600px] overflow-hidden border-none shadow-2xl ring-1 ring-border rounded-xl animate-in-fade relative z-0">
-      <div 
-        ref={mapContainerRef} 
-        className="w-full h-full z-0" 
-        aria-label="City Infrastructure Map"
-      />
-      
-      {/* Custom Map Legend */}
-      <div className="absolute bottom-6 left-6 z-[1000] bg-background/90 backdrop-blur-md p-4 rounded-lg border shadow-xl flex flex-col gap-3 pointer-events-none sm:pointer-events-auto">
-        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Intelligence Legend</p>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-          <span className="text-[11px] font-bold">Optimal (&gt;70%)</span>
+    <div className="space-y-4">
+      {unmappedCount > 0 && (
+        <Alert variant="destructive" className="animate-in-fade bg-rose-500/10 border-rose-500/20 text-rose-600">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle className="font-bold">Missing Geospatial Data</AlertTitle>
+          <AlertDescription className="text-xs">
+            There are {unmappedCount} infrastructure assets registered without precise geographic coordinates. These assets are excluded from the visual intelligence map. Please update them in the <span className="font-black underline">Assets</span> tab.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <Card className="w-full h-[600px] overflow-hidden border-none shadow-2xl ring-1 ring-border rounded-xl animate-in-fade relative z-0">
+        <div 
+          ref={mapContainerRef} 
+          className="w-full h-full z-0" 
+          aria-label="City Infrastructure Map"
+        />
+        
+        {/* Custom Map Legend */}
+        <div className="absolute bottom-6 left-6 z-[1000] bg-background/90 backdrop-blur-md p-4 rounded-lg border shadow-xl flex flex-col gap-3 pointer-events-none sm:pointer-events-auto">
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Intelligence Legend</p>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+            <span className="text-[11px] font-bold">Optimal (&gt;70%)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
+            <span className="text-[11px] font-bold">Standard (40-70%)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" />
+            <span className="text-[11px] font-bold">Critical (&lt;40%)</span>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
-          <span className="text-[11px] font-bold">Standard (40-70%)</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" />
-          <span className="text-[11px] font-bold">Critical (&lt;40%)</span>
-        </div>
-      </div>
-    </Card>
+      </Card>
+    </div>
   );
 }

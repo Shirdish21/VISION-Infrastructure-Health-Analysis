@@ -1,7 +1,7 @@
-
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -11,12 +11,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
-import { Save, Plus, Loader2 } from "lucide-react";
+import { Save, Plus, Loader2, MapPin } from "lucide-react";
+
+const LocationPicker = dynamic(() => import("./location-picker"), {
+  ssr: false,
+  loading: () => <div className="h-[300px] bg-muted animate-pulse rounded-lg flex items-center justify-center text-xs text-muted-foreground uppercase font-bold tracking-widest">Loading Map Interface...</div>
+});
 
 export default function AddAssetForm() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [healthScore, setHealthScore] = useState(100);
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -25,18 +31,14 @@ export default function AddAssetForm() {
     
     setLoading(true);
 
-    // Chennai default center for demo coords if not provided
-    const DEFAULT_LAT = 13.0827;
-    const DEFAULT_LNG = 80.2707;
-
     const assetData = {
       name: formData.get("name") as string,
       type: formData.get("type") as string,
       location: formData.get("location") as string,
       status: formData.get("status") as string,
       healthScore: healthScore,
-      lat: DEFAULT_LAT + (Math.random() - 0.5) * 0.1,
-      lng: DEFAULT_LNG + (Math.random() - 0.5) * 0.1,
+      lat: coords?.lat || null,
+      lng: coords?.lng || null,
       createdAt: serverTimestamp(),
     };
 
@@ -48,6 +50,7 @@ export default function AddAssetForm() {
       });
       form.reset();
       setHealthScore(100);
+      setCoords(null);
     } catch (error) {
       console.error("Firestore error:", error);
       toast({ 
@@ -97,7 +100,7 @@ export default function AddAssetForm() {
           
           <div className="grid gap-6 md:grid-cols-2">
             <div className="space-y-3">
-              <Label htmlFor="location" className="text-sm font-bold">Deployment Location</Label>
+              <Label htmlFor="location" className="text-sm font-bold">General Sector / Area</Label>
               <Input id="location" name="location" placeholder="e.g. North Sector, Zone 4" required className="bg-muted/30 h-11" />
             </div>
             <div className="space-y-3">
@@ -113,6 +116,19 @@ export default function AddAssetForm() {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="space-y-4">
+            <Label className="text-sm font-bold flex items-center gap-2">
+              <MapPin className="h-4 w-4 text-primary" />
+              Geographic Intelligence (Precise Coordinates)
+            </Label>
+            <LocationPicker onLocationSelect={(lat, lng) => setCoords({ lat, lng })} />
+            {coords && (
+              <div className="text-[10px] font-mono text-muted-foreground bg-muted p-2 rounded border border-dashed">
+                LAT: {coords.lat.toFixed(6)} | LNG: {coords.lng.toFixed(6)}
+              </div>
+            )}
           </div>
 
           <div className="space-y-6 pt-4 bg-muted/20 p-6 rounded-xl border border-dashed border-primary/20">
