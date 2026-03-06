@@ -4,14 +4,14 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import { db } from "@/lib/firebase";
-import { collection, addDoc, serverTimestamp, query, where, getDocs } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Save, Loader2, MapPin, Gauge, ShieldCheck } from "lucide-react";
+import { Save, Loader2, MapPin, Gauge, ShieldCheck, Zap } from "lucide-react";
 import type { InfrastructureAsset, HealthStatus, AlertSeverity } from "@/lib/definitions";
 
 const LocationPicker = dynamic(() => import("./location-picker"), {
@@ -31,33 +31,40 @@ export default function AddAssetForm() {
     
     setLoading(true);
 
+    const type = formData.get("type") as string;
+    const isElectric = ["Transformer", "Substation", "Power Line"].includes(type);
+
     // 1. Generate Stable Sensor Values
     const capacity = Number(formData.get("capacity")) || 1000;
     const temp = 20 + Math.random() * 80; // 20-100 C
-    const pressure = 20 + Math.random() * 100; // 20-120 PSI
+    const pressure = isElectric ? 0 : 20 + Math.random() * 100; // 20-120 PSI
     const usage = capacity * (0.1 + Math.random() * 0.85);
     const maintenanceAge = Math.floor(Math.random() * 500);
+    const voltageLevel = isElectric ? "11kV" : "";
 
     // 2. Rule-Based Initial Health Calculation
     let riskFactors = 0;
     let anomalyType = "";
-    if (temp > 85) riskFactors += 25;
-    if (pressure > 90) riskFactors += 20;
-    if ((usage / capacity) > 0.95) riskFactors += 20;
+
+    // Common rules
+    if (temp > 80) riskFactors += 25;
+    if ((usage / capacity) > 0.95) riskFactors += 30;
     if (maintenanceAge > 365) riskFactors += 15;
-    riskFactors += Math.random() * 10;
+
+    // Infrastructure specific
+    if (!isElectric && pressure > 90) riskFactors += 20;
 
     const finalScore = Math.max(0, Math.floor(100 - riskFactors));
     let healthStatus: HealthStatus = 'Optimal';
-    if (finalScore < 50) healthStatus = 'Critical';
-    else if (finalScore < 80) healthStatus = 'Standard';
+    if (finalScore < 40) healthStatus = 'Critical';
+    else if (finalScore < 70) healthStatus = 'Warning';
 
     const assetData: Omit<InfrastructureAsset, 'id'> = {
       name: formData.get("name") as string,
-      type: formData.get("type") as any,
+      type: type as any,
       location: formData.get("location") as string,
       zone: formData.get("zone") as string,
-      status: healthStatus === 'Critical' ? 'Critical' : healthStatus === 'Standard' ? 'Maintenance' : 'Operational',
+      status: healthStatus === 'Critical' ? 'Critical' : healthStatus === 'Warning' ? 'Maintenance' : 'Operational',
       healthStatus: healthStatus,
       capacity: capacity,
       usage: usage,
@@ -67,6 +74,8 @@ export default function AddAssetForm() {
       lat: coords?.lat || null as any,
       lng: coords?.lng || null as any,
       maintenanceAge: maintenanceAge,
+      voltageLevel: voltageLevel,
+      loadPercentage: Math.round((usage / capacity) * 100),
       createdAt: serverTimestamp(),
       lastUpdated: serverTimestamp(),
     };
@@ -76,29 +85,29 @@ export default function AddAssetForm() {
 
       // 3. One-time Anomaly Check & Alert Generation
       if (healthStatus !== 'Optimal') {
-        let type = "Standard Maintenance Needed";
+        let alertTitle = "Standard Maintenance Needed";
         let severity: AlertSeverity = 'Warning';
         
-        if (temp > 85) type = "Thermal Overload";
-        else if (pressure > 90) type = "High Structural Pressure";
-        else if ((usage / capacity) > 0.95) type = "Asset Overload";
+        if (temp > 80) alertTitle = isElectric ? "Transformer Overheating" : "Thermal Overload";
+        else if (pressure > 90) alertTitle = "High Structural Pressure";
+        else if ((usage / capacity) > 0.95) alertTitle = isElectric ? "Grid Overcapacity" : "Asset Overload";
 
         if (healthStatus === 'Critical') severity = 'Critical';
 
         await addDoc(collection(db, "alerts"), {
           assetId: docRef.id,
           assetName: assetData.name,
-          type: type,
+          type: alertTitle,
           severity: severity,
-          description: `Initial registration scan detected: ${type}.`,
+          description: `Initial registration scan detected: ${alertTitle}. Status is ${healthStatus}.`,
           location: assetData.location,
           timestamp: serverTimestamp()
         });
       }
 
       toast({ 
-        title: "Intelligence Synchronized", 
-        description: `${assetData.name} has been onboarded with a stable health score of ${finalScore}%.` 
+        title: "Asset Onboarded Successfully", 
+        description: `${assetData.name} has been synchronized with health score ${finalScore}%.` 
       });
       form.reset();
       setCoords(null);
@@ -143,7 +152,9 @@ export default function AddAssetForm() {
                   <SelectItem value="Bridge">Bridge</SelectItem>
                   <SelectItem value="Pipeline">Pipeline</SelectItem>
                   <SelectItem value="Streetlight">Streetlight</SelectItem>
-                  <SelectItem value="Transformer">Transformer</SelectItem>
+                  <SelectItem value="Transformer">Transformer (Grid)</SelectItem>
+                  <SelectItem value="Substation">Substation (Grid)</SelectItem>
+                  <SelectItem value="Power Line">Power Line (Grid)</SelectItem>
                   <SelectItem value="Public Facility">Public Facility</SelectItem>
                 </SelectContent>
               </Select>
@@ -186,7 +197,7 @@ export default function AddAssetForm() {
           </div>
 
           <div className="bg-muted/20 p-4 rounded-xl border border-dashed border-primary/20 text-xs text-muted-foreground leading-relaxed">
-            Note: Initial health sensors (Temperature, Pressure, Utilization) will be simulated and computed automatically based on standard urban risk models upon synchronization.
+            Note: Sensors will be simulated based on urban risk models. Electricity assets use grid-specific evaluation (Temperature, Voltage, Load).
           </div>
 
           <Button 
@@ -200,7 +211,7 @@ export default function AddAssetForm() {
               </span>
             ) : (
               <span className="flex items-center gap-2">
-                <Save className="h-5 w-5" /> Register Asset Intelligence
+                <Zap className="h-5 w-5" /> Synchronize Asset Intelligence
               </span>
             )}
           </Button>

@@ -15,10 +15,12 @@ import HealthMonitoring from "@/components/health-monitoring";
 import AlertsList from "@/components/alerts-list";
 import HealthAnalytics from "@/components/health-analytics";
 import HealthSimulator from "@/components/health-simulator";
+import ElectricGrid from "@/components/electric-grid";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Filter, X } from "lucide-react";
+import { Filter, X, ShieldCheck } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import type { FilterState } from "@/lib/definitions";
 
 const MapView = dynamic(() => import("@/components/map-view"), {
@@ -52,12 +54,16 @@ export default function Home() {
         <Header />
         <main className="flex-1 p-6 md:p-10 max-w-7xl mx-auto w-full space-y-8">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-            <div className="space-y-1">
+            <div className="space-y-2">
+              <Badge variant="outline" className="flex w-fit items-center gap-1.5 bg-primary/5 text-primary border-primary/20 px-2 py-0.5 rounded-full mb-1">
+                <ShieldCheck className="h-3 w-3" />
+                <span className="text-[10px] font-black uppercase tracking-widest">VISION – Infrastructure Health Intelligence</span>
+              </Badge>
               <h2 className="text-3xl font-bold tracking-tight capitalize">
-                {currentTab === 'dashboard' ? 'Health Monitoring System' : currentTab.replace('-', ' ')}
+                {currentTab === 'dashboard' ? 'Infrastructure Health Monitoring System' : currentTab.replace('-', ' ')}
               </h2>
               <p className="text-muted-foreground">
-                Vision Infrastructure Intelligence: Real-time surveillance & automated health scoring.
+                Automated urban surveillance, anomaly detection, and predictive risk scoring.
               </p>
             </div>
 
@@ -79,6 +85,8 @@ export default function Home() {
                     <SelectItem value="Pipeline">Pipelines</SelectItem>
                     <SelectItem value="Streetlight">Streetlights</SelectItem>
                     <SelectItem value="Transformer">Transformers</SelectItem>
+                    <SelectItem value="Substation">Substations</SelectItem>
+                    <SelectItem value="Power Line">Power Lines</SelectItem>
                   </SelectContent>
                 </Select>
 
@@ -138,6 +146,10 @@ export default function Home() {
 
             <TabsContent value="analytics" className="outline-none">
               <HealthAnalytics />
+            </TabsContent>
+
+            <TabsContent value="electric" className="outline-none">
+              <ElectricGrid />
             </TabsContent>
 
             <TabsContent value="add" className="max-w-2xl mx-auto outline-none">

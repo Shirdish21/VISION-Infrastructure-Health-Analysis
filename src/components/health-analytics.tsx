@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot } from "firebase/firestore";
+import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { 
   PieChart, Pie, Cell, ResponsiveContainer, 
@@ -31,21 +31,29 @@ export default function HealthAnalytics() {
         { name: 'Critical', value: critical, color: '#ef4444' },
       ]);
 
-      // Utilization trends (simulated by taking actual scores)
+      // Utilization trends
       setUtilizationData(assets.slice(0, 10).map((a, i) => ({
         name: a.name.split(' ')[0],
-        usage: a.usage,
-        capacity: a.capacity
+        usage: a.usage || a.loadPercentage,
+        capacity: a.capacity || 100
       })));
     });
 
-    const unsubAlerts = onSnapshot(collection(db, "alerts"), (snapshot) => {
+    const qAlerts = query(collection(db, "alerts"), orderBy("timestamp", "desc"));
+    const unsubAlerts = onSnapshot(qAlerts, (snapshot) => {
       const alerts = snapshot.docs.map(doc => doc.data());
       const counts = alerts.reduce((acc: any, curr: any) => {
-        acc[curr.type] = (acc[curr.type] || 0) + 1;
+        const type = curr.type || 'Unknown Anomaly';
+        acc[type] = (acc[type] || 0) + 1;
         return acc;
       }, {});
-      setAlertData(Object.entries(counts).map(([name, value]) => ({ name, value })));
+      
+      const formattedData = Object.entries(counts).map(([name, value]) => ({ 
+        name, 
+        value 
+      })).sort((a: any, b: any) => b.value - a.value);
+
+      setAlertData(formattedData);
     });
 
     return () => {
@@ -83,10 +91,10 @@ export default function HealthAnalytics() {
                   ))}
                 </Pie>
                 <Tooltip 
-                  contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))' }}
+                  contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '12px', borderColor: 'hsl(var(--border))' }}
                   itemStyle={{ color: 'hsl(var(--foreground))' }}
                 />
-                <Legend />
+                <Legend iconType="circle" />
               </PieChart>
             </ResponsiveContainer>
           </CardContent>
@@ -99,17 +107,24 @@ export default function HealthAnalytics() {
               <BarChart3 className="h-5 w-5 text-rose-500" />
               Anomaly Type Frequency
             </CardTitle>
-            <CardDescription>Most common critical triggers in the last cycle.</CardDescription>
+            <CardDescription>Visualizing historical fault triggers from Firestore.</CardDescription>
           </CardHeader>
           <CardContent className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={alertData}>
-                <XAxis dataKey="name" fontSize={10} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
-                <YAxis fontSize={10} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
-                <Tooltip 
-                   contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))' }}
+              <BarChart data={alertData} layout="vertical">
+                <XAxis type="number" hide />
+                <YAxis 
+                  dataKey="name" 
+                  type="category" 
+                  fontSize={8} 
+                  tick={{ fill: 'hsl(var(--muted-foreground))' }} 
+                  width={120}
+                  tickFormatter={(val) => val.length > 20 ? `${val.substring(0, 20)}...` : val}
                 />
-                <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                <Tooltip 
+                   contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '12px', border: '1px solid hsl(var(--border))' }}
+                />
+                <Bar dataKey="value" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={20} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -128,14 +143,14 @@ export default function HealthAnalytics() {
         <CardContent className="h-[400px]">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={utilizationData}>
-              <XAxis dataKey="name" fontSize={10} />
-              <YAxis fontSize={10} />
+              <XAxis dataKey="name" fontSize={10} axisLine={false} tickLine={false} />
+              <YAxis fontSize={10} axisLine={false} tickLine={false} />
               <Tooltip 
-                 contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))' }}
+                 contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '12px', border: '1px solid hsl(var(--border))' }}
               />
               <Legend />
-              <Line type="monotone" dataKey="usage" stroke="#ef4444" strokeWidth={3} dot={{ fill: '#ef4444' }} />
-              <Line type="monotone" dataKey="capacity" stroke="#6366f1" strokeWidth={2} strokeDasharray="5 5" />
+              <Line type="monotone" dataKey="usage" stroke="#ef4444" strokeWidth={3} dot={{ fill: '#ef4444', r: 4 }} activeDot={{ r: 6 }} />
+              <Line type="monotone" dataKey="capacity" stroke="#6366f1" strokeWidth={2} strokeDasharray="5 5" dot={false} />
             </LineChart>
           </ResponsiveContainer>
         </CardContent>

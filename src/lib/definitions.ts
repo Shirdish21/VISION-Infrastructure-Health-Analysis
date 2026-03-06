@@ -1,7 +1,7 @@
 
 export type InfrastructureStatus = 'Operational' | 'Maintenance' | 'Critical';
-export type InfrastructureType = 'Road' | 'Bridge' | 'Pipeline' | 'Streetlight' | 'Public Facility' | 'Transformer';
-export type HealthStatus = 'Optimal' | 'Standard' | 'Critical';
+export type InfrastructureType = 'Road' | 'Bridge' | 'Pipeline' | 'Streetlight' | 'Public Facility' | 'Transformer' | 'Substation' | 'Power Line';
+export type HealthStatus = 'Optimal' | 'Standard' | 'Critical' | 'Normal' | 'Warning';
 export type AlertSeverity = 'Warning' | 'Critical';
 
 export interface InfrastructureAsset {
@@ -23,6 +23,9 @@ export interface InfrastructureAsset {
   isAbnormal?: boolean;
   lastUpdated?: any;
   createdAt?: any;
+  // Electric grid specific fields
+  voltageLevel?: string;
+  loadPercentage?: number;
 }
 
 export interface InfrastructureAlert {

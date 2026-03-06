@@ -12,7 +12,8 @@ import {
   Map as MapIcon,
   Bell,
   BarChart3,
-  Stethoscope
+  Stethoscope,
+  Zap
 } from "lucide-react"
 
 import {
@@ -36,6 +37,7 @@ export function AppSidebar({ currentTab, onTabChange }: AppSidebarProps) {
     { id: "assets", label: "Assets", icon: Database },
     { id: "health", label: "Health Monitoring", icon: Stethoscope },
     { id: "map", label: "Map View", icon: MapIcon },
+    { id: "electric", label: "Electric Grid", icon: Zap },
     { id: "alerts", label: "Alerts", icon: Bell },
     { id: "analytics", label: "Analytics", icon: BarChart3 },
     { id: "add", label: "Add Asset", icon: PlusCircle },
