@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState, useRef } from "react";
@@ -16,6 +17,9 @@ export default function LocationPicker({ initialLat, initialLng, onLocationSelec
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(
+    initialLat && initialLng ? { lat: initialLat, lng: initialLng } : null
+  );
 
   useEffect(() => {
     if (!mapContainerRef.current) return;
@@ -48,6 +52,7 @@ export default function LocationPicker({ initialLat, initialLng, onLocationSelec
         markerRef.current = L.marker(e.latlng).addTo(map);
       }
 
+      setCoords({ lat, lng });
       onLocationSelect(lat, lng);
     });
 
@@ -60,14 +65,31 @@ export default function LocationPicker({ initialLat, initialLng, onLocationSelec
   }, [initialLat, initialLng, onLocationSelect]);
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-4">
       <div 
         ref={mapContainerRef} 
-        className="w-full h-[300px] rounded-lg border shadow-inner z-0" 
+        className="w-full h-[300px] rounded-lg border shadow-inner z-0 relative" 
       />
-      <p className="text-[10px] text-muted-foreground italic">
-        Click on the map to set the precise infrastructure deployment coordinate.
-      </p>
+      <div className="flex flex-col gap-2 bg-muted/40 p-4 rounded-lg border border-border/50">
+        <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest mb-1">Geospatial Intelligence Anchor</p>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1">
+            <span className="text-[9px] font-bold text-muted-foreground uppercase">Latitude</span>
+            <div className="font-mono text-sm bg-background px-2 py-1 rounded border border-border/50">
+              {coords ? coords.lat.toFixed(6) : "Not Set"}
+            </div>
+          </div>
+          <div className="space-y-1">
+            <span className="text-[9px] font-bold text-muted-foreground uppercase">Longitude</span>
+            <div className="font-mono text-sm bg-background px-2 py-1 rounded border border-border/50">
+              {coords ? coords.lng.toFixed(6) : "Not Set"}
+            </div>
+          </div>
+        </div>
+        <p className="text-[10px] text-primary font-medium italic mt-2">
+          Click on the map above to accurately anchor the infrastructure coordinate.
+        </p>
+      </div>
     </div>
   );
 }

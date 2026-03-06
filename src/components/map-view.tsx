@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState, useRef } from "react";
@@ -68,8 +69,8 @@ export default function MapView() {
     markersLayer.clearLayers();
 
     const getMarkerColor = (score: number) => {
-      if (score > 70) return "#10b981"; // Emerald 500
-      if (score >= 40) return "#f59e0b"; // Amber 500
+      if (score >= 80) return "#10b981"; // Emerald 500
+      if (score >= 50) return "#f59e0b"; // Amber 500
       return "#ef4444"; // Red 500
     };
 
@@ -77,36 +78,50 @@ export default function MapView() {
       if (asset.lat && asset.lng) {
         const markerColor = getMarkerColor(asset.healthScore);
         const marker = L.circleMarker([asset.lat, asset.lng], {
-          radius: 10,
+          radius: 12,
           fillColor: markerColor,
-          fillOpacity: 0.8,
+          fillOpacity: 0.9,
           color: "#ffffff",
-          weight: 2,
+          weight: 3,
         });
 
+        // Detailed Popup Content
         const popupContent = `
-          <div class="p-1 min-w-[160px] font-body">
-            <h3 class="text-sm font-black mb-2" style="color: #2563eb;">${asset.name}</h3>
-            <div style="font-size: 11px; display: flex; flex-direction: column; gap: 4px;">
+          <div class="p-2 min-w-[180px] font-body">
+            <h3 class="text-sm font-black mb-3 border-b pb-1" style="color: #2563eb;">${asset.name}</h3>
+            <div style="font-size: 11px; display: flex; flex-direction: column; gap: 6px;">
               <div style="display: flex; justify-content: space-between;">
-                <span style="color: #64748b; font-weight: 700; text-transform: uppercase;">Type:</span>
+                <span style="color: #64748b; font-weight: 700; text-transform: uppercase;">Class:</span>
                 <span style="font-weight: 700;">${asset.type}</span>
               </div>
               <div style="display: flex; justify-content: space-between;">
-                <span style="color: #64748b; font-weight: 700; text-transform: uppercase;">Location:</span>
-                <span style="font-weight: 700;">${asset.location}</span>
+                <span style="color: #64748b; font-weight: 700; text-transform: uppercase;">Zone:</span>
+                <span style="font-weight: 700;">${asset.zone}</span>
               </div>
               <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span style="color: #64748b; font-weight: 700; text-transform: uppercase;">Status:</span>
-                <span style="background: #2563eb; color: white; padding: 1px 4px; border-radius: 4px; font-size: 9px; font-weight: 900; text-transform: uppercase;">${asset.status}</span>
+                <span style="background: ${markerColor}; color: white; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 900; text-transform: uppercase;">${asset.healthStatus}</span>
               </div>
-              <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 4px; border-top: 1px solid #e2e8f0; margin-top: 2px;">
-                <span style="color: #64748b; font-weight: 700; text-transform: uppercase;">Health:</span>
-                <span style="font-weight: 900; font-size: 13px; color: ${markerColor}">${asset.healthScore}%</span>
+              <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 6px; border-top: 1px dashed #e2e8f0; margin-top: 2px;">
+                <span style="color: #64748b; font-weight: 700; text-transform: uppercase;">Health Index:</span>
+                <span style="font-weight: 900; font-size: 14px; color: ${markerColor}">${asset.healthScore}%</span>
               </div>
             </div>
           </div>
         `;
+
+        // Permanent Tooltip for quick identification
+        marker.bindTooltip(`
+          <div style="font-weight: 900; font-size: 10px; color: #1e293b; padding: 2px 4px;">
+            ${asset.name}<br/>
+            <span style="font-size: 8px; font-weight: 700; color: #64748b;">${asset.type.toUpperCase()}</span>
+          </div>
+        `, { 
+          permanent: false, 
+          direction: 'top',
+          offset: [0, -10],
+          opacity: 0.9
+        });
 
         marker.bindPopup(popupContent, {
           closeButton: false,
@@ -122,34 +137,34 @@ export default function MapView() {
       {unmappedCount > 0 && (
         <Alert variant="destructive" className="animate-in-fade bg-rose-500/10 border-rose-500/20 text-rose-600">
           <AlertTriangle className="h-4 w-4" />
-          <AlertTitle className="font-bold">Missing Geospatial Data</AlertTitle>
+          <AlertTitle className="font-bold">Missing Geospatial Intelligence</AlertTitle>
           <AlertDescription className="text-xs">
-            There are {unmappedCount} infrastructure assets registered without precise geographic coordinates. These assets are excluded from the visual intelligence map. Please update them in the <span className="font-black underline">Assets</span> tab.
+            There are {unmappedCount} infrastructure assets registered without precise geographic coordinates. These assets are excluded from the visual intelligence map. Update them in the <span className="font-black underline">Assets</span> tab to calibrate their positions.
           </AlertDescription>
         </Alert>
       )}
 
-      <Card className="w-full h-[600px] overflow-hidden border-none shadow-2xl ring-1 ring-border rounded-xl animate-in-fade relative z-0">
+      <Card className="w-full h-[650px] overflow-hidden border-none shadow-2xl ring-1 ring-border rounded-xl animate-in-fade relative z-0">
         <div 
           ref={mapContainerRef} 
           className="w-full h-full z-0" 
-          aria-label="City Infrastructure Map"
+          aria-label="City Infrastructure Intelligence Map"
         />
         
         {/* Custom Map Legend */}
-        <div className="absolute bottom-6 left-6 z-[1000] bg-background/90 backdrop-blur-md p-4 rounded-lg border shadow-xl flex flex-col gap-3 pointer-events-none sm:pointer-events-auto">
-          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Intelligence Legend</p>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-            <span className="text-[11px] font-bold">Optimal (&gt;70%)</span>
+        <div className="absolute bottom-6 left-6 z-[1000] bg-background/90 backdrop-blur-md p-5 rounded-xl border shadow-2xl flex flex-col gap-4 pointer-events-none sm:pointer-events-auto border-primary/20">
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground border-b border-primary/10 pb-2">Intelligence Legend</p>
+          <div className="flex items-center gap-3">
+            <div className="w-3.5 h-3.5 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] border-2 border-white" />
+            <span className="text-[11px] font-bold">Optimal (&gt;80%)</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
-            <span className="text-[11px] font-bold">Standard (40-70%)</span>
+          <div className="flex items-center gap-3">
+            <div className="w-3.5 h-3.5 rounded-full bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)] border-2 border-white" />
+            <span className="text-[11px] font-bold">Standard (50-80%)</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" />
-            <span className="text-[11px] font-bold">Critical (&lt;40%)</span>
+          <div className="flex items-center gap-3">
+            <div className="w-3.5 h-3.5 rounded-full bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.5)] border-2 border-white" />
+            <span className="text-[11px] font-bold">Critical (&lt;50%)</span>
           </div>
         </div>
       </Card>

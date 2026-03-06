@@ -11,6 +11,7 @@ export default function HealthSimulator() {
     const unsub = onSnapshot(collection(db, "infrastructure"), (snapshot) => {
       const assets = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as InfrastructureAsset));
       
+      // Changed simulation interval to 15 seconds for stability
       const interval = setInterval(async () => {
         if (assets.length === 0) return;
 
@@ -96,7 +97,7 @@ export default function HealthSimulator() {
             });
           }
         }
-      }, 5000);
+      }, 15000); // 15 seconds for stability
 
       return () => clearInterval(interval);
     });
