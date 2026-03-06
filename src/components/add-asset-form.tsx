@@ -4,16 +4,15 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import { db } from "@/lib/firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, query, where, getDocs } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
-import { Save, Plus, Loader2, MapPin, Gauge, ShieldCheck } from "lucide-react";
-import type { InfrastructureAsset } from "@/lib/definitions";
+import { Save, Loader2, MapPin, Gauge, ShieldCheck } from "lucide-react";
+import type { InfrastructureAsset, HealthStatus, AlertSeverity } from "@/lib/definitions";
 
 const LocationPicker = dynamic(() => import("./location-picker"), {
   ssr: false,
@@ -23,7 +22,6 @@ const LocationPicker = dynamic(() => import("./location-picker"), {
 export default function AddAssetForm() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [healthScore, setHealthScore] = useState(100);
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -33,33 +31,76 @@ export default function AddAssetForm() {
     
     setLoading(true);
 
+    // 1. Generate Stable Sensor Values
+    const capacity = Number(formData.get("capacity")) || 1000;
+    const temp = 20 + Math.random() * 80; // 20-100 C
+    const pressure = 20 + Math.random() * 100; // 20-120 PSI
+    const usage = capacity * (0.1 + Math.random() * 0.85);
+    const maintenanceAge = Math.floor(Math.random() * 500);
+
+    // 2. Rule-Based Initial Health Calculation
+    let riskFactors = 0;
+    let anomalyType = "";
+    if (temp > 85) riskFactors += 25;
+    if (pressure > 90) riskFactors += 20;
+    if ((usage / capacity) > 0.95) riskFactors += 20;
+    if (maintenanceAge > 365) riskFactors += 15;
+    riskFactors += Math.random() * 10;
+
+    const finalScore = Math.max(0, Math.floor(100 - riskFactors));
+    let healthStatus: HealthStatus = 'Optimal';
+    if (finalScore < 50) healthStatus = 'Critical';
+    else if (finalScore < 80) healthStatus = 'Standard';
+
     const assetData: Omit<InfrastructureAsset, 'id'> = {
       name: formData.get("name") as string,
       type: formData.get("type") as any,
       location: formData.get("location") as string,
       zone: formData.get("zone") as string,
-      status: 'Operational',
-      healthStatus: 'Optimal',
-      capacity: Number(formData.get("capacity")) || 1000,
-      usage: 0,
-      temperature: 25,
-      pressure: 50,
-      healthScore: healthScore,
+      status: healthStatus === 'Critical' ? 'Critical' : healthStatus === 'Standard' ? 'Maintenance' : 'Operational',
+      healthStatus: healthStatus,
+      capacity: capacity,
+      usage: usage,
+      temperature: temp,
+      pressure: pressure,
+      healthScore: finalScore,
       lat: coords?.lat || null as any,
       lng: coords?.lng || null as any,
-      maintenanceAge: 0,
+      maintenanceAge: maintenanceAge,
       createdAt: serverTimestamp(),
       lastUpdated: serverTimestamp(),
     };
 
     try {
-      await addDoc(collection(db, "infrastructure"), assetData);
+      const docRef = await addDoc(collection(db, "infrastructure"), assetData);
+
+      // 3. One-time Anomaly Check & Alert Generation
+      if (healthStatus !== 'Optimal') {
+        let type = "Standard Maintenance Needed";
+        let severity: AlertSeverity = 'Warning';
+        
+        if (temp > 85) type = "Thermal Overload";
+        else if (pressure > 90) type = "High Structural Pressure";
+        else if ((usage / capacity) > 0.95) type = "Asset Overload";
+
+        if (healthStatus === 'Critical') severity = 'Critical';
+
+        await addDoc(collection(db, "alerts"), {
+          assetId: docRef.id,
+          assetName: assetData.name,
+          type: type,
+          severity: severity,
+          description: `Initial registration scan detected: ${type}.`,
+          location: assetData.location,
+          timestamp: serverTimestamp()
+        });
+      }
+
       toast({ 
         title: "Intelligence Synchronized", 
-        description: `${assetData.name} has been onboarded to the health surveillance network.` 
+        description: `${assetData.name} has been onboarded with a stable health score of ${finalScore}%.` 
       });
       form.reset();
-      setHealthScore(100);
       setCoords(null);
     } catch (error) {
       console.error("Firestore error:", error);
@@ -79,10 +120,10 @@ export default function AddAssetForm() {
       <CardHeader className="pb-8">
         <div className="flex items-center gap-2 text-primary mb-2">
            <ShieldCheck className="h-5 w-5" />
-           <span className="text-xs font-bold uppercase tracking-widest">Asset Calibration</span>
+           <span className="text-xs font-bold uppercase tracking-widest">Stable Asset Onboarding</span>
         </div>
         <CardTitle className="text-2xl font-bold tracking-tight">Onboard New Urban Intelligence</CardTitle>
-        <CardDescription>Register hardware with baseline sensor calibration and geospatial anchors.</CardDescription>
+        <CardDescription>Register hardware with automated initial health calibration.</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-8">
@@ -144,21 +185,8 @@ export default function AddAssetForm() {
             <LocationPicker onLocationSelect={(lat, lng) => setCoords({ lat, lng })} />
           </div>
 
-          <div className="space-y-6 pt-4 bg-muted/20 p-6 rounded-xl border border-dashed border-primary/20">
-            <div className="flex justify-between items-center">
-              <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Initial Health Calibration</Label>
-              <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-black text-primary tracking-tighter">{healthScore}</span>
-                <span className="text-xs font-bold text-muted-foreground">%</span>
-              </div>
-            </div>
-            <Slider
-              value={[healthScore]}
-              onValueChange={(val) => setHealthScore(val[0])}
-              max={100}
-              step={1}
-              className="py-4"
-            />
+          <div className="bg-muted/20 p-4 rounded-xl border border-dashed border-primary/20 text-xs text-muted-foreground leading-relaxed">
+            Note: Initial health sensors (Temperature, Pressure, Utilization) will be simulated and computed automatically based on standard urban risk models upon synchronization.
           </div>
 
           <Button 
@@ -168,11 +196,11 @@ export default function AddAssetForm() {
           >
             {loading ? (
               <span className="flex items-center gap-2">
-                <Loader2 className="h-5 w-5 animate-spin" /> Synchronizing Intelligence...
+                <Loader2 className="h-5 w-5 animate-spin" /> Calibrating Sensors...
               </span>
             ) : (
               <span className="flex items-center gap-2">
-                <Save className="h-5 w-5" /> Synchronize Asset
+                <Save className="h-5 w-5" /> Register Asset Intelligence
               </span>
             )}
           </Button>

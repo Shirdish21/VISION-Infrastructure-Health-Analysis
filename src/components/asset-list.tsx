@@ -12,7 +12,11 @@ import {
   limit as firestoreLimit,
   doc,
   deleteDoc,
-  updateDoc
+  updateDoc,
+  where,
+  getDocs,
+  addDoc,
+  serverTimestamp
 } from "firebase/firestore";
 import { 
   Table, 
@@ -47,9 +51,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
-import { MapPin, ArrowRight, Edit2, Trash2, Loader2, Activity } from "lucide-react";
+import { MapPin, ArrowRight, Edit2, Trash2, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import type { InfrastructureAsset } from "@/lib/definitions";
+import type { InfrastructureAsset, HealthStatus, AlertSeverity } from "@/lib/definitions";
 
 const LocationPicker = dynamic(() => import("./location-picker"), {
   ssr: false,
@@ -58,9 +62,14 @@ const LocationPicker = dynamic(() => import("./location-picker"), {
 
 interface AssetListProps {
   limit?: number;
+  filters?: {
+    type: string;
+    status: string;
+    zone: string;
+  };
 }
 
-export default function AssetList({ limit }: AssetListProps) {
+export default function AssetList({ limit, filters }: AssetListProps) {
   const { toast } = useToast();
   const [assets, setAssets] = useState<InfrastructureAsset[]>([]);
   const [editingAsset, setEditingAsset] = useState<InfrastructureAsset | null>(null);
@@ -74,13 +83,21 @@ export default function AssetList({ limit }: AssetListProps) {
     }
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      setAssets(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as InfrastructureAsset)));
-    }, (error) => {
-      console.error("Snapshot error:", error);
+      const all = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as InfrastructureAsset));
+      if (filters) {
+        setAssets(all.filter(asset => {
+          const typeMatch = filters.type === 'all' || asset.type === filters.type;
+          const statusMatch = filters.status === 'all' || asset.healthStatus === filters.status;
+          const zoneMatch = filters.zone === 'all' || asset.zone === filters.zone;
+          return typeMatch && statusMatch && zoneMatch;
+        }));
+      } else {
+        setAssets(all);
+      }
     });
 
     return () => unsubscribe();
-  }, [limit]);
+  }, [limit, filters]);
 
   const getHealthColor = (score: number) => {
     if (score >= 80) return "bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]";
@@ -116,11 +133,51 @@ export default function AssetList({ limit }: AssetListProps) {
     setIsUpdating(true);
     try {
       const assetRef = doc(db, "infrastructure", editingAsset.id);
-      const { id, ...updateData } = editingAsset;
-      await updateDoc(assetRef, updateData);
-      toast({ title: "Asset updated successfully", description: "Metrics resynchronized with central network." });
+      
+      // Determine Health Status based on Score
+      let newHealthStatus: HealthStatus = 'Optimal';
+      if (editingAsset.healthScore < 50) newHealthStatus = 'Critical';
+      else if (editingAsset.healthScore < 80) newHealthStatus = 'Standard';
+
+      const updatedData = {
+        ...editingAsset,
+        healthStatus: newHealthStatus,
+        status: newHealthStatus === 'Critical' ? 'Critical' : newHealthStatus === 'Standard' ? 'Maintenance' : 'Operational',
+        lastUpdated: serverTimestamp()
+      };
+
+      // 4. Alert Logic: Only on Transition and Deduplicated
+      const prevAsset = assets.find(a => a.id === editingAsset.id);
+      if (prevAsset && prevAsset.healthStatus === 'Optimal' && newHealthStatus !== 'Optimal') {
+        const anomalyType = editingAsset.temperature! > 85 ? "Thermal Overload" : (editingAsset.usage! / editingAsset.capacity!) > 0.95 ? "Asset Overload" : "Generic Anomaly";
+        
+        // Check for existing active alert for this asset and type
+        const alertsQuery = query(
+          collection(db, "alerts"), 
+          where("assetId", "==", editingAsset.id),
+          where("type", "==", anomalyType)
+        );
+        const alertSnap = await getDocs(alertsQuery);
+        
+        if (alertSnap.empty) {
+          await addDoc(collection(db, "alerts"), {
+            assetId: editingAsset.id,
+            assetName: editingAsset.name,
+            type: anomalyType,
+            severity: newHealthStatus === 'Critical' ? 'Critical' : 'Warning',
+            description: `Manual override detected ${anomalyType} condition.`,
+            location: editingAsset.location,
+            timestamp: serverTimestamp()
+          });
+        }
+      }
+
+      const { id, ...dataToSave } = updatedData;
+      await updateDoc(assetRef, dataToSave);
+      toast({ title: "Asset updated successfully", description: "Intelligence metrics have been locked." });
       setEditingAsset(null);
     } catch (e) {
+      console.error(e);
       toast({ variant: "destructive", title: "Update Failed", description: "Sync failure detected." });
     } finally {
       setIsUpdating(false);
@@ -131,8 +188,8 @@ export default function AssetList({ limit }: AssetListProps) {
     <Card className="border-none shadow-sm ring-1 ring-border card-glow animate-in-fade">
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <div>
-          <CardTitle className="text-xl font-bold">Health Inventory</CardTitle>
-          <CardDescription>Urban hardware surveillance and computed health metrics.</CardDescription>
+          <CardTitle className="text-xl font-bold">Stable Health Inventory</CardTitle>
+          <CardDescription>Urban hardware surveillance with static sensor data.</CardDescription>
         </div>
         {limit && (
            <ArrowRight className="h-5 w-5 text-muted-foreground/30" />
@@ -218,8 +275,8 @@ export default function AssetList({ limit }: AssetListProps) {
       <Dialog open={!!editingAsset} onOpenChange={(open) => !open && setEditingAsset(null)}>
         <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit Health Metrics</DialogTitle>
-            <DialogDescription>Manually override hardware parameters or re-calibrate geolocation.</DialogDescription>
+            <DialogTitle>Admin Health Overwrite</DialogTitle>
+            <DialogDescription>Manually adjust static health metrics and sensor telemetry.</DialogDescription>
           </DialogHeader>
           {editingAsset && (
             <form onSubmit={handleUpdate} className="space-y-6 pt-4">
@@ -233,22 +290,40 @@ export default function AssetList({ limit }: AssetListProps) {
                     className="bg-muted/30"
                   />
                 </div>
+                
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Type</Label>
-                    <Select value={editingAsset.type} onValueChange={(val: any) => setEditingAsset({...editingAsset, type: val})}>
-                      <SelectTrigger className="bg-muted/30"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Road">Road</SelectItem>
-                        <SelectItem value="Bridge">Bridge</SelectItem>
-                        <SelectItem value="Pipeline">Pipeline</SelectItem>
-                        <SelectItem value="Streetlight">Streetlight</SelectItem>
-                        <SelectItem value="Public Facility">Public Facility</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Label>Temperature (°C)</Label>
+                    <Input 
+                      type="number"
+                      value={editingAsset.temperature} 
+                      onChange={(e) => setEditingAsset({...editingAsset, temperature: Number(e.target.value)})}
+                      className="bg-muted/30"
+                    />
                   </div>
                   <div className="space-y-2">
-                    <Label>Design Capacity</Label>
+                    <Label>Pressure (PSI)</Label>
+                    <Input 
+                      type="number"
+                      value={editingAsset.pressure} 
+                      onChange={(e) => setEditingAsset({...editingAsset, pressure: Number(e.target.value)})}
+                      className="bg-muted/30"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Usage Load</Label>
+                    <Input 
+                      type="number"
+                      value={editingAsset.usage} 
+                      onChange={(e) => setEditingAsset({...editingAsset, usage: Number(e.target.value)})}
+                      className="bg-muted/30"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Max Capacity</Label>
                     <Input 
                       type="number"
                       value={editingAsset.capacity} 
@@ -271,7 +346,7 @@ export default function AssetList({ limit }: AssetListProps) {
 
                 <div className="space-y-4 pt-2">
                    <div className="flex justify-between items-center">
-                      <Label className="text-xs font-bold uppercase text-muted-foreground">Calibrated Health Score</Label>
+                      <Label className="text-xs font-bold uppercase text-muted-foreground">Admin-Defined Health Score</Label>
                       <span className="text-lg font-black text-primary">{editingAsset.healthScore}%</span>
                    </div>
                    <Slider 
@@ -289,9 +364,9 @@ export default function AssetList({ limit }: AssetListProps) {
                 >
                   {isUpdating ? (
                     <span className="flex items-center gap-2">
-                      <Loader2 className="h-4 w-4 animate-spin" /> Resyncing...
+                      <Loader2 className="h-4 w-4 animate-spin" /> Committing Changes...
                     </span>
-                  ) : "Update Asset Intelligence"}
+                  ) : "Lock Health Intelligence"}
                 </Button>
               </DialogFooter>
             </form>
