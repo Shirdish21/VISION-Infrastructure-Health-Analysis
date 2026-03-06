@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
@@ -16,8 +16,11 @@ import AlertsList from "@/components/alerts-list";
 import HealthAnalytics from "@/components/health-analytics";
 import HealthSimulator from "@/components/health-simulator";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Filter, X } from "lucide-react";
+import type { FilterState } from "@/lib/definitions";
 
-// Dynamic import for the Map component
 const MapView = dynamic(() => import("@/components/map-view"), {
   ssr: false,
   loading: () => (
@@ -29,6 +32,17 @@ const MapView = dynamic(() => import("@/components/map-view"), {
 
 export default function Home() {
   const [currentTab, setCurrentTab] = useState("dashboard");
+  const [filters, setFilters] = useState<FilterState>({
+    type: "all",
+    status: "all",
+    zone: "all"
+  });
+
+  const resetFilters = () => {
+    setFilters({ type: "all", status: "all", zone: "all" });
+  };
+
+  const isFiltered = filters.type !== "all" || filters.status !== "all" || filters.zone !== "all";
 
   return (
     <SidebarProvider>
@@ -37,61 +51,108 @@ export default function Home() {
       <SidebarInset>
         <Header />
         <main className="flex-1 p-6 md:p-10 max-w-7xl mx-auto w-full space-y-8">
-          <div className="flex flex-col gap-1">
-            <h2 className="text-3xl font-bold tracking-tight capitalize">
-              {currentTab === 'dashboard' ? 'Health Monitoring System' : currentTab.replace('-', ' ')}
-            </h2>
-            <p className="text-muted-foreground">
-              {currentTab === 'dashboard' && 'Real-time urban infrastructure health and anomaly surveillance.'}
-              {currentTab === 'assets' && 'Detailed inventory and condition metrics of city hardware.'}
-              {currentTab === 'health' && 'Live sensor telemetry and health score computation.'}
-              {currentTab === 'alerts' && 'Automated system alerts and anomaly detections.'}
-              {currentTab === 'analytics' && 'Macro-level infrastructure health and utilization trends.'}
-              {currentTab === 'add' && 'Onboard new assets with design capacity metrics.'}
-              {currentTab === 'report' && 'Citizen transmission channel for urban hazards.'}
-              {currentTab === 'issues' && 'Chronological log of citizen reported incidents.'}
-              {currentTab === 'map' && 'Geospatial health risk visualization and heatmaps.'}
-            </p>
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+            <div className="space-y-1">
+              <h2 className="text-3xl font-bold tracking-tight capitalize">
+                {currentTab === 'dashboard' ? 'Health Monitoring System' : currentTab.replace('-', ' ')}
+              </h2>
+              <p className="text-muted-foreground">
+                Vision Infrastructure Intelligence: Real-time surveillance & automated health scoring.
+              </p>
+            </div>
+
+            {/* Filter Panel */}
+            {(currentTab === 'dashboard' || currentTab === 'assets' || currentTab === 'health') && (
+              <div className="flex flex-wrap items-center gap-3 bg-muted/20 p-3 rounded-xl border border-border/50">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground mr-2">
+                  <Filter className="h-3 w-3" /> Filters
+                </div>
+                
+                <Select value={filters.type} onValueChange={(v) => setFilters(f => ({ ...f, type: v }))}>
+                  <SelectTrigger className="w-[140px] h-9 text-xs bg-background">
+                    <SelectValue placeholder="Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    <SelectItem value="Road">Roads</SelectItem>
+                    <SelectItem value="Bridge">Bridges</SelectItem>
+                    <SelectItem value="Pipeline">Pipelines</SelectItem>
+                    <SelectItem value="Streetlight">Streetlights</SelectItem>
+                    <SelectItem value="Transformer">Transformers</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select value={filters.status} onValueChange={(v) => setFilters(f => ({ ...f, status: v }))}>
+                  <SelectTrigger className="w-[140px] h-9 text-xs bg-background">
+                    <SelectValue placeholder="Health" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All States</SelectItem>
+                    <SelectItem value="Optimal">Optimal</SelectItem>
+                    <SelectItem value="Standard">Standard</SelectItem>
+                    <SelectItem value="Critical">Critical</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select value={filters.zone} onValueChange={(v) => setFilters(f => ({ ...f, zone: v }))}>
+                  <SelectTrigger className="w-[140px] h-9 text-xs bg-background">
+                    <SelectValue placeholder="Zone" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Zones</SelectItem>
+                    <SelectItem value="North Sector">North Sector</SelectItem>
+                    <SelectItem value="South Sector">South Sector</SelectItem>
+                    <SelectItem value="Central">Central</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {isFiltered && (
+                  <Button variant="ghost" size="icon" onClick={resetFilters} className="h-9 w-9 text-rose-500">
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
 
           <Tabs value={currentTab} className="space-y-6">
-            <TabsContent value="dashboard" className="space-y-8 focus-visible:outline-none outline-none">
-              <DashboardOverview />
+            <TabsContent value="dashboard" className="space-y-8 outline-none">
+              <DashboardOverview filters={filters} />
               <div className="grid gap-8 lg:grid-cols-2">
                  <AlertsList limit={5} />
                  <ReportedIssues limit={5} />
               </div>
             </TabsContent>
 
-            <TabsContent value="assets" className="focus-visible:outline-none outline-none">
-              <AssetList />
+            <TabsContent value="assets" className="outline-none">
+              <AssetList filters={filters} />
             </TabsContent>
 
-            <TabsContent value="health" className="focus-visible:outline-none outline-none">
-              <HealthMonitoring />
+            <TabsContent value="health" className="outline-none">
+              <HealthMonitoring filters={filters} />
             </TabsContent>
 
-            <TabsContent value="alerts" className="focus-visible:outline-none outline-none">
+            <TabsContent value="alerts" className="outline-none">
               <AlertsList />
             </TabsContent>
 
-            <TabsContent value="analytics" className="focus-visible:outline-none outline-none">
+            <TabsContent value="analytics" className="outline-none">
               <HealthAnalytics />
             </TabsContent>
 
-            <TabsContent value="add" className="max-w-2xl mx-auto focus-visible:outline-none outline-none">
+            <TabsContent value="add" className="max-w-2xl mx-auto outline-none">
               <AddAssetForm />
             </TabsContent>
 
-            <TabsContent value="map" className="focus-visible:outline-none outline-none">
+            <TabsContent value="map" className="outline-none">
               <MapView />
             </TabsContent>
 
-            <TabsContent value="report" className="max-w-2xl mx-auto focus-visible:outline-none outline-none">
+            <TabsContent value="report" className="max-w-2xl mx-auto outline-none">
               <IssueReporting />
             </TabsContent>
 
-            <TabsContent value="issues" className="focus-visible:outline-none outline-none">
+            <TabsContent value="issues" className="outline-none">
               <ReportedIssues />
             </TabsContent>
           </Tabs>

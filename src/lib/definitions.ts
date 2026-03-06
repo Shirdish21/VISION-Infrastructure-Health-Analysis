@@ -1,6 +1,7 @@
 
 export type InfrastructureStatus = 'Operational' | 'Maintenance' | 'Critical';
-export type InfrastructureType = 'Road' | 'Bridge' | 'Pipeline' | 'Streetlight' | 'Public Facility';
+export type InfrastructureType = 'Road' | 'Bridge' | 'Pipeline' | 'Streetlight' | 'Public Facility' | 'Transformer';
+export type HealthStatus = 'Optimal' | 'Standard' | 'Critical';
 export type AlertSeverity = 'Warning' | 'Critical';
 
 export interface InfrastructureAsset {
@@ -8,16 +9,19 @@ export interface InfrastructureAsset {
   name: string;
   type: InfrastructureType;
   location: string;
+  zone: string;
   status: InfrastructureStatus;
   healthScore: number;
+  healthStatus: HealthStatus;
   lat?: number;
   lng?: number;
   temperature?: number;
   pressure?: number;
   usage?: number;
   capacity?: number;
+  maintenanceAge?: number; // In days
   isAbnormal?: boolean;
-  lastMaintenance?: any;
+  lastUpdated?: any;
   createdAt?: any;
 }
 
@@ -43,10 +47,16 @@ export interface InfrastructureIssue {
 
 export type DashboardStats = {
   totalAssets: number;
-  healthy: number;
+  optimal: number;
   warning: number;
   critical: number;
   activeAlerts: number;
+};
+
+export type FilterState = {
+  type: string;
+  status: string;
+  zone: string;
 };
 
 // State types for legacy AI flows
@@ -65,4 +75,4 @@ export type CalibrationState = {
   error?: string | {
     sensitivityFeedback?: string[];
   };
-};
+}
