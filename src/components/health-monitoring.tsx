@@ -35,8 +35,10 @@ export default function HealthMonitoring({ filters }: HealthMonitoringProps) {
   }, [filters]);
 
   const getHealthBadge = (score: number) => {
+    // 80-100: Optimal, 60-79: Standard, 30-59: Warning, 0-29: Critical
     if (score >= 80) return <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 font-black">OPTIMAL</Badge>;
-    if (score >= 50) return <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20 font-black">STANDARD</Badge>;
+    if (score >= 60) return <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20 font-black">STANDARD</Badge>;
+    if (score >= 30) return <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20 font-black">WARNING</Badge>;
     return <Badge className="bg-rose-500/10 text-rose-500 border-rose-500/20 font-black">CRITICAL</Badge>;
   };
 
@@ -52,7 +54,7 @@ export default function HealthMonitoring({ filters }: HealthMonitoringProps) {
           const utilization = asset.capacity ? (asset.usage! / asset.capacity!) * 100 : 0;
           
           return (
-            <Card key={asset.id} className={`border-2 transition-all duration-500 ${asset.healthScore < 50 ? 'border-rose-500/30 ring-4 ring-rose-500/5 shadow-rose-500/10' : asset.healthScore < 80 ? 'border-amber-500/20 shadow-amber-500/5' : 'border-emerald-500/20 shadow-emerald-500/5'} card-glow group overflow-hidden`}>
+            <Card key={asset.id} className={`border-2 transition-all duration-500 ${asset.healthScore < 30 ? 'border-rose-500/30 ring-4 ring-rose-500/5 shadow-rose-500/10' : asset.healthScore < 60 ? 'border-amber-500/20 shadow-amber-500/5' : asset.healthScore < 80 ? 'border-blue-500/20 shadow-blue-500/5' : 'border-emerald-500/20 shadow-emerald-500/5'} card-glow group overflow-hidden`}>
               <CardHeader className="pb-4">
                 <div className="flex justify-between items-start mb-2">
                   <div className="space-y-1">
@@ -71,7 +73,7 @@ export default function HealthMonitoring({ filters }: HealthMonitoringProps) {
                     <div className="flex items-center gap-1.5 text-[9px] font-black text-muted-foreground uppercase tracking-widest">
                       <Thermometer className="h-3 w-3" /> Core Temp
                     </div>
-                    <div className={`text-xl font-black ${asset.temperature && asset.temperature > 85 ? 'text-rose-500' : ''}`}>
+                    <div className={`text-xl font-black ${asset.temperature && asset.temperature > 80 ? 'text-rose-500' : ''}`}>
                       {asset.temperature?.toFixed(1) || '--'}°C
                     </div>
                   </div>
@@ -103,11 +105,11 @@ export default function HealthMonitoring({ filters }: HealthMonitoringProps) {
                 <div className="pt-4 border-t border-dashed border-border/50 flex items-center justify-between">
                   <div className="flex flex-col">
                     <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">Health Intelligence Index</span>
-                    <span className={`text-3xl font-black tracking-tighter ${asset.healthScore < 50 ? 'text-rose-500' : asset.healthScore < 80 ? 'text-amber-500' : 'text-emerald-500'}`}>
+                    <span className={`text-3xl font-black tracking-tighter ${asset.healthScore < 30 ? 'text-rose-500' : asset.healthScore < 60 ? 'text-amber-500' : 'text-emerald-500'}`}>
                       {asset.healthScore}%
                     </span>
                   </div>
-                  {asset.healthScore < 50 ? (
+                  {asset.healthScore < 30 ? (
                     <div className="flex items-center gap-1.5 text-rose-500 animate-pulse bg-rose-500/10 px-3 py-1 rounded-full">
                       <AlertTriangle className="h-4 w-4" />
                       <span className="text-[9px] font-black uppercase tracking-widest">Immediate Response</span>

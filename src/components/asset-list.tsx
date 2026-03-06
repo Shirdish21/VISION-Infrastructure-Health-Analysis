@@ -101,7 +101,8 @@ export default function AssetList({ limit, filters }: AssetListProps) {
 
   const getHealthColor = (score: number) => {
     if (score >= 80) return "bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]";
-    if (score >= 50) return "bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]";
+    if (score >= 60) return "bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]";
+    if (score >= 30) return "bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]";
     return "bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.5)]";
   };
 
@@ -118,9 +119,9 @@ export default function AssetList({ limit, filters }: AssetListProps) {
     if (!deletingAssetId) return;
     try {
       await deleteDoc(doc(db, "infrastructure", deletingAssetId));
-      toast({ title: "Asset deleted", description: "Permanent removal from surveillance database confirmed." });
+      toast({ title: "Asset deleted", description: "Permanent removal confirmed." });
     } catch (e) {
-      toast({ variant: "destructive", title: "Delete Failed", description: "Database transmission error." });
+      toast({ variant: "destructive", title: "Delete Failed", description: "Sync error." });
     } finally {
       setDeletingAssetId(null);
     }
@@ -134,28 +135,25 @@ export default function AssetList({ limit, filters }: AssetListProps) {
     try {
       const assetRef = doc(db, "infrastructure", editingAsset.id);
       
-      // Determine Health Status based on Score
+      // Update classification ranges: 80-100: Optimal, 60-79: Standard, 30-59: Warning, 0-29: Critical
       let newHealthStatus: HealthStatus = 'Optimal';
-      if (editingAsset.healthScore < 50) newHealthStatus = 'Critical';
+      if (editingAsset.healthScore < 30) newHealthStatus = 'Critical';
+      else if (editingAsset.healthScore < 60) newHealthStatus = 'Warning';
       else if (editingAsset.healthScore < 80) newHealthStatus = 'Standard';
 
       const updatedData = {
         ...editingAsset,
         healthStatus: newHealthStatus,
-        status: newHealthStatus === 'Critical' ? 'Critical' : newHealthStatus === 'Standard' ? 'Maintenance' : 'Operational',
+        status: newHealthStatus === 'Critical' ? 'Critical' : newHealthStatus === 'Warning' ? 'Maintenance' : 'Operational',
         lastUpdated: serverTimestamp()
       };
 
-      // 4. Alert Logic: Only on Transition and Deduplicated
-      const prevAsset = assets.find(a => a.id === editingAsset.id);
-      if (prevAsset && prevAsset.healthStatus === 'Optimal' && newHealthStatus !== 'Optimal') {
-        const anomalyType = editingAsset.temperature! > 85 ? "Thermal Overload" : (editingAsset.usage! / editingAsset.capacity!) > 0.95 ? "Asset Overload" : "Generic Anomaly";
-        
-        // Check for existing active alert for this asset and type
+      // Alert Logic for Critical Transitions
+      if (newHealthStatus === 'Critical') {
         const alertsQuery = query(
           collection(db, "alerts"), 
           where("assetId", "==", editingAsset.id),
-          where("type", "==", anomalyType)
+          where("type", "==", "Critical Infrastructure Health")
         );
         const alertSnap = await getDocs(alertsQuery);
         
@@ -163,9 +161,9 @@ export default function AssetList({ limit, filters }: AssetListProps) {
           await addDoc(collection(db, "alerts"), {
             assetId: editingAsset.id,
             assetName: editingAsset.name,
-            type: anomalyType,
-            severity: newHealthStatus === 'Critical' ? 'Critical' : 'Warning',
-            description: `Manual override detected ${anomalyType} condition.`,
+            type: "Critical Infrastructure Health",
+            severity: 'Critical',
+            description: `Manual update detected critical health drop to ${editingAsset.healthScore}%.`,
             location: editingAsset.location,
             timestamp: serverTimestamp()
           });
@@ -174,11 +172,11 @@ export default function AssetList({ limit, filters }: AssetListProps) {
 
       const { id, ...dataToSave } = updatedData;
       await updateDoc(assetRef, dataToSave);
-      toast({ title: "Asset updated successfully", description: "Intelligence metrics have been locked." });
+      toast({ title: "Asset updated", description: "Intelligence metrics refreshed." });
       setEditingAsset(null);
     } catch (e) {
       console.error(e);
-      toast({ variant: "destructive", title: "Update Failed", description: "Sync failure detected." });
+      toast({ variant: "destructive", title: "Update Failed", description: "Sync failure." });
     } finally {
       setIsUpdating(false);
     }
@@ -228,11 +226,11 @@ export default function AssetList({ limit, filters }: AssetListProps) {
                       <div className="flex flex-col gap-1.5 w-32">
                         <div className="flex justify-between items-center text-[10px] font-bold">
                            <span className="text-muted-foreground uppercase">Load</span>
-                           <span className={util > 90 ? 'text-rose-500' : ''}>{util.toFixed(0)}%</span>
+                           <span className={util > 95 ? 'text-rose-500' : ''}>{util.toFixed(0)}%</span>
                         </div>
                         <div className="h-1 w-full bg-muted rounded-full overflow-hidden">
                            <div 
-                              className={`h-full transition-all duration-1000 ${util > 90 ? 'bg-rose-500' : 'bg-primary'}`} 
+                              className={`h-full transition-all duration-1000 ${util > 95 ? 'bg-rose-500' : 'bg-primary'}`} 
                               style={{ width: `${util}%` }} 
                            />
                         </div>
@@ -241,7 +239,7 @@ export default function AssetList({ limit, filters }: AssetListProps) {
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <div className={`h-2.5 w-2.5 rounded-full ${getHealthColor(asset.healthScore)}`} />
-                        <span className={`text-sm font-black ${asset.healthScore < 50 ? 'text-rose-500' : ''}`}>
+                        <span className={`text-sm font-black ${asset.healthScore < 30 ? 'text-rose-500' : ''}`}>
                           {asset.healthScore}%
                         </span>
                       </div>
@@ -276,7 +274,7 @@ export default function AssetList({ limit, filters }: AssetListProps) {
         <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Admin Health Overwrite</DialogTitle>
-            <DialogDescription>Manually adjust static health metrics and sensor telemetry.</DialogDescription>
+            <DialogDescription>Manually adjust health metrics. Health can now drop to 0% for critical assets.</DialogDescription>
           </DialogHeader>
           {editingAsset && (
             <form onSubmit={handleUpdate} className="space-y-6 pt-4">
@@ -353,6 +351,7 @@ export default function AssetList({ limit, filters }: AssetListProps) {
                     value={[editingAsset.healthScore]} 
                     onValueChange={(val) => setEditingAsset({...editingAsset, healthScore: val[0]})}
                     max={100}
+                    step={1}
                    />
                 </div>
               </div>
@@ -380,7 +379,7 @@ export default function AssetList({ limit, filters }: AssetListProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action will permanently purge the asset from the intelligence monitoring system.
+              This action will permanently purge the asset from the surveillance database.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -22,25 +22,40 @@ export default function HealthAnalytics() {
       const assets = snapshot.docs.map(doc => doc.data());
       
       // Health Distribution
-      const healthy = assets.filter(a => a.healthScore >= 80).length;
-      const warning = assets.filter(a => a.healthScore >= 50 && a.healthScore < 80).length;
-      const critical = assets.filter(a => a.healthScore < 50).length;
+      // 80-100: Optimal, 60-79: Standard, 30-59: Warning, 0-29: Critical
+      const optimal = assets.filter(a => a.healthScore >= 80).length;
+      const standard = assets.filter(a => a.healthScore >= 60 && a.healthScore < 80).length;
+      const warning = assets.filter(a => a.healthScore >= 30 && a.healthScore < 60).length;
+      const critical = assets.filter(a => a.healthScore < 30).length;
+      
       setHealthData([
-        { name: 'Optimal', value: healthy, color: '#10b981' },
-        { name: 'Standard', value: warning, color: '#f59e0b' },
+        { name: 'Optimal', value: optimal, color: '#10b981' },
+        { name: 'Standard', value: standard, color: '#3b82f6' },
+        { name: 'Warning', value: warning, color: '#f59e0b' },
         { name: 'Critical', value: critical, color: '#ef4444' },
       ]);
 
       // Utilization trends
       setUtilizationData(assets.slice(0, 10).map((a, i) => ({
         name: a.name.split(' ')[0],
-        usage: a.usage || a.loadPercentage,
+        usage: a.usage || a.loadPercentage || 0,
         capacity: a.capacity || 100
       })));
     });
 
     const qAlerts = query(collection(db, "alerts"), orderBy("timestamp", "desc"));
     const unsubAlerts = onSnapshot(qAlerts, (snapshot) => {
+      if (snapshot.empty) {
+        // Fallback demo dataset if no alerts exist
+        setAlertData([
+          { name: 'Thermal Overload', value: 3 },
+          { name: 'Pressure Spike', value: 2 },
+          { name: 'Voltage Instability', value: 2 },
+          { name: 'Capacity Overload', value: 1 },
+        ]);
+        return;
+      }
+
       const alerts = snapshot.docs.map(doc => doc.data());
       const counts = alerts.reduce((acc: any, curr: any) => {
         const type = curr.type || 'Unknown Anomaly';
@@ -51,7 +66,7 @@ export default function HealthAnalytics() {
       const formattedData = Object.entries(counts).map(([name, value]) => ({ 
         name, 
         value 
-      })).sort((a: any, b: any) => b.value - a.value);
+      })).sort((a: any, b: any) => (b.value as number) - (a.value as number));
 
       setAlertData(formattedData);
     });
@@ -107,7 +122,7 @@ export default function HealthAnalytics() {
               <BarChart3 className="h-5 w-5 text-rose-500" />
               Anomaly Type Frequency
             </CardTitle>
-            <CardDescription>Visualizing historical fault triggers from Firestore.</CardDescription>
+            <CardDescription>Live counts from Firestore alerts. Demo data shown if empty.</CardDescription>
           </CardHeader>
           <CardContent className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -138,7 +153,7 @@ export default function HealthAnalytics() {
             <TrendingUp className="h-5 w-5 text-indigo-500" />
             Capacity vs. Current Load
           </CardTitle>
-          <CardDescription>Comparative analysis of hardware utilization across sectors.</CardDescription>
+          <CardDescription>Comparative analysis of hardware utilization across top sectors.</CardDescription>
         </CardHeader>
         <CardContent className="h-[400px]">
           <ResponsiveContainer width="100%" height="100%">

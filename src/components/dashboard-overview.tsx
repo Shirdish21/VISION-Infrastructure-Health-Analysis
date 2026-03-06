@@ -39,12 +39,13 @@ export default function DashboardOverview({ filters }: DashboardOverviewProps) {
         return typeMatch && statusMatch && zoneMatch;
       });
 
+      // Classification: 80-100: Optimal, 60-79: Standard, 30-59: Warning, 0-29: Critical
       setStats(prev => ({
         ...prev,
         totalAssets: filtered.length,
         optimal: filtered.filter(d => d.healthScore >= 80).length,
-        warning: filtered.filter(d => d.healthScore >= 50 && d.healthScore < 80).length,
-        critical: filtered.filter(d => d.healthScore < 50).length,
+        warning: filtered.filter(d => d.healthScore >= 30 && d.healthScore < 80).length,
+        critical: filtered.filter(d => d.healthScore < 30).length,
       }));
     });
 

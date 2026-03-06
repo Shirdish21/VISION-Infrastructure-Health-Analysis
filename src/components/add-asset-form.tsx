@@ -38,26 +38,24 @@ export default function AddAssetForm() {
     const capacity = Number(formData.get("capacity")) || 1000;
     const temp = 20 + Math.random() * 80; // 20-100 C
     const pressure = isElectric ? 0 : 20 + Math.random() * 100; // 20-120 PSI
-    const usage = capacity * (0.1 + Math.random() * 0.85);
+    const usage = capacity * (0.1 + Math.random() * 0.95);
     const maintenanceAge = Math.floor(Math.random() * 500);
     const voltageLevel = isElectric ? "11kV" : "";
 
-    // 2. Rule-Based Initial Health Calculation
+    // 2. Rule-Based Health Calculation (v3.0 Improvements)
     let riskFactors = 0;
-    let anomalyType = "";
+    if (temp > 80) riskFactors += 30;
+    if (!isElectric && pressure > 90) riskFactors += 25;
+    if ((usage / capacity) > 0.95) riskFactors += 25;
+    if (maintenanceAge > 365) riskFactors += 20;
 
-    // Common rules
-    if (temp > 80) riskFactors += 25;
-    if ((usage / capacity) > 0.95) riskFactors += 30;
-    if (maintenanceAge > 365) riskFactors += 15;
-
-    // Infrastructure specific
-    if (!isElectric && pressure > 90) riskFactors += 20;
-
-    const finalScore = Math.max(0, Math.floor(100 - riskFactors));
+    const finalScore = Math.max(0, Math.min(100, 100 - riskFactors));
+    
+    // Classification: 80-100: Optimal, 60-79: Standard, 30-59: Warning, 0-29: Critical
     let healthStatus: HealthStatus = 'Optimal';
-    if (finalScore < 40) healthStatus = 'Critical';
-    else if (finalScore < 70) healthStatus = 'Warning';
+    if (finalScore < 30) healthStatus = 'Critical';
+    else if (finalScore < 60) healthStatus = 'Warning';
+    else if (finalScore < 80) healthStatus = 'Standard';
 
     const assetData: Omit<InfrastructureAsset, 'id'> = {
       name: formData.get("name") as string,
@@ -83,23 +81,24 @@ export default function AddAssetForm() {
     try {
       const docRef = await addDoc(collection(db, "infrastructure"), assetData);
 
-      // 3. One-time Anomaly Check & Alert Generation
-      if (healthStatus !== 'Optimal') {
-        let alertTitle = "Standard Maintenance Needed";
-        let severity: AlertSeverity = 'Warning';
-        
-        if (temp > 80) alertTitle = isElectric ? "Transformer Overheating" : "Thermal Overload";
-        else if (pressure > 90) alertTitle = "High Structural Pressure";
-        else if ((usage / capacity) > 0.95) alertTitle = isElectric ? "Grid Overcapacity" : "Asset Overload";
-
-        if (healthStatus === 'Critical') severity = 'Critical';
-
+      // 3. Alert Generation for Critical States
+      if (finalScore < 30) {
         await addDoc(collection(db, "alerts"), {
           assetId: docRef.id,
           assetName: assetData.name,
-          type: alertTitle,
-          severity: severity,
-          description: `Initial registration scan detected: ${alertTitle}. Status is ${healthStatus}.`,
+          type: "Critical Infrastructure Health",
+          severity: "Critical",
+          description: `Asset registered with critical health index: ${finalScore}%. Immediate surveillance recommended.`,
+          location: assetData.location,
+          timestamp: serverTimestamp()
+        });
+      } else if (healthStatus === 'Warning') {
+        await addDoc(collection(db, "alerts"), {
+          assetId: docRef.id,
+          assetName: assetData.name,
+          type: "Degraded Asset Status",
+          severity: "Warning",
+          description: `Initial scan detected degraded health: ${finalScore}%.`,
           location: assetData.location,
           timestamp: serverTimestamp()
         });
@@ -107,7 +106,7 @@ export default function AddAssetForm() {
 
       toast({ 
         title: "Asset Onboarded Successfully", 
-        description: `${assetData.name} has been synchronized with health score ${finalScore}%.` 
+        description: `${assetData.name} synchronized with intelligence score ${finalScore}%.` 
       });
       form.reset();
       setCoords(null);
@@ -116,7 +115,7 @@ export default function AddAssetForm() {
       toast({ 
         variant: "destructive", 
         title: "Registration Failed", 
-        description: "Integration error. Please check your network connectivity." 
+        description: "Integration error. Check connectivity." 
       });
     } finally {
       setLoading(false);
@@ -197,7 +196,7 @@ export default function AddAssetForm() {
           </div>
 
           <div className="bg-muted/20 p-4 rounded-xl border border-dashed border-primary/20 text-xs text-muted-foreground leading-relaxed">
-            Note: Sensors will be simulated based on urban risk models. Electricity assets use grid-specific evaluation (Temperature, Voltage, Load).
+            Note: Sensors will be simulated based on urban risk models. Electricity assets use grid-specific evaluation.
           </div>
 
           <Button 
