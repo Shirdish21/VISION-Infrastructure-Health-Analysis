@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Send, AlertCircle } from "lucide-react";
+import { Send, AlertCircle, Loader2 } from "lucide-react";
 
 export default function IssueReporting() {
   const { toast } = useToast();
@@ -20,7 +20,8 @@ export default function IssueReporting() {
     event.preventDefault();
     setLoading(true);
 
-    const formData = new FormData(event.currentTarget);
+    const form = event.currentTarget;
+    const formData = new FormData(form);
     const issueData = {
       issueType: formData.get("issueType") as string,
       description: formData.get("description") as string,
@@ -31,8 +32,8 @@ export default function IssueReporting() {
 
     try {
       await addDoc(collection(db, "issues"), issueData);
-      toast({ title: "Signal Sent", description: "Civil authorities have received the alert." });
-      (event.target as HTMLFormElement).reset();
+      toast({ title: "Signal Sent", description: "Civil authorities have received your transmission." });
+      form.reset();
     } catch (error) {
       toast({ variant: "destructive", title: "Transmission Failed", description: "Could not sync report with central database." });
     } finally {
@@ -41,8 +42,8 @@ export default function IssueReporting() {
   }
 
   return (
-    <Card className="border-none shadow-xl ring-1 ring-border overflow-hidden">
-      <div className="bg-destructive h-2 w-full" />
+    <Card className="border-none shadow-xl ring-1 ring-border overflow-hidden card-glow animate-in-fade">
+      <div className="bg-gradient-to-r from-rose-600 to-red-600 h-2 w-full" />
       <CardHeader className="pb-8">
         <div className="flex items-center gap-2 text-destructive mb-2">
            <AlertCircle className="h-5 w-5" />
@@ -86,8 +87,12 @@ export default function IssueReporting() {
               />
             </div>
           </div>
-          <Button type="submit" className="w-full h-12 text-base font-bold shadow-lg" variant="destructive" disabled={loading}>
-            {loading ? "Broadcasting Alert..." : (
+          <Button type="submit" className="w-full h-12 text-base font-bold btn-destructive-gradient" disabled={loading}>
+            {loading ? (
+              <span className="flex items-center gap-2">
+                <Loader2 className="h-5 w-5 animate-spin" /> Broadcasting...
+              </span>
+            ) : (
               <span className="flex items-center gap-2">
                 <Send className="h-5 w-5" /> Dispatch Issue Report
               </span>
