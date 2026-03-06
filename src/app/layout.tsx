@@ -5,7 +5,7 @@ import { Toaster } from "@/components/ui/toaster"
 import { ThemeProvider } from "@/components/theme-provider";
 
 export const metadata: Metadata = {
-  title: 'VISION – Infrastructure Intelligence',
+  title: 'VISION - Virtual Infrastructure Surveillance & Intelligence Optimization Network',
   description: 'Virtual Infrastructure Surveillance & Intelligence Optimization Network',
 };
 

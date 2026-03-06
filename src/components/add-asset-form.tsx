@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -11,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
-import { Save, Plus, Loader2, MapPin } from "lucide-react";
+import { Save, Plus, Loader2, MapPin, Gauge } from "lucide-react";
 
 const LocationPicker = dynamic(() => import("./location-picker"), {
   ssr: false,
@@ -36,6 +37,10 @@ export default function AddAssetForm() {
       type: formData.get("type") as string,
       location: formData.get("location") as string,
       status: formData.get("status") as string,
+      capacity: Number(formData.get("capacity")) || 1000,
+      usage: 0,
+      temperature: 25,
+      pressure: 50,
       healthScore: healthScore,
       lat: coords?.lat || null,
       lng: coords?.lng || null,
@@ -46,7 +51,7 @@ export default function AddAssetForm() {
       await addDoc(collection(db, "infrastructure"), assetData);
       toast({ 
         title: "Asset successfully added", 
-        description: `${assetData.name} has been onboarded to the smart city network.` 
+        description: `${assetData.name} has been onboarded to the health monitoring network.` 
       });
       form.reset();
       setHealthScore(100);
@@ -71,8 +76,8 @@ export default function AddAssetForm() {
            <Plus className="h-5 w-5" />
            <span className="text-xs font-bold uppercase tracking-widest">Administrative Tool</span>
         </div>
-        <CardTitle className="text-2xl font-bold">Register Infrastructure Asset</CardTitle>
-        <CardDescription>Onboard a new city component into the intelligence network.</CardDescription>
+        <CardTitle className="text-2xl font-bold">Register Intelligence Asset</CardTitle>
+        <CardDescription>Onboard hardware with baseline capacity and geospatial metrics.</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-8">
@@ -100,21 +105,14 @@ export default function AddAssetForm() {
           
           <div className="grid gap-6 md:grid-cols-2">
             <div className="space-y-3">
-              <Label htmlFor="location" className="text-sm font-bold">General Sector / Area</Label>
-              <Input id="location" name="location" placeholder="e.g. North Sector, Zone 4" required className="bg-muted/30 h-11" />
+              <Label htmlFor="capacity" className="text-sm font-bold flex items-center gap-2">
+                <Gauge className="h-4 w-4 text-primary" /> Design Capacity
+              </Label>
+              <Input id="capacity" name="capacity" type="number" placeholder="e.g. 5000" required className="bg-muted/30 h-11" />
             </div>
             <div className="space-y-3">
-              <Label htmlFor="status" className="text-sm font-bold">System Status</Label>
-              <Select name="status" defaultValue="Operational">
-                <SelectTrigger className="bg-muted/30 h-11">
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Operational">Operational</SelectItem>
-                  <SelectItem value="Maintenance">Maintenance</SelectItem>
-                  <SelectItem value="Critical">Critical</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label htmlFor="location" className="text-sm font-bold">Sector / Area</Label>
+              <Input id="location" name="location" placeholder="e.g. North Sector, Zone 4" required className="bg-muted/30 h-11" />
             </div>
           </div>
 
@@ -124,16 +122,11 @@ export default function AddAssetForm() {
               Geographic Intelligence (Precise Coordinates)
             </Label>
             <LocationPicker onLocationSelect={(lat, lng) => setCoords({ lat, lng })} />
-            {coords && (
-              <div className="text-[10px] font-mono text-muted-foreground bg-muted p-2 rounded border border-dashed">
-                LAT: {coords.lat.toFixed(6)} | LNG: {coords.lng.toFixed(6)}
-              </div>
-            )}
           </div>
 
           <div className="space-y-6 pt-4 bg-muted/20 p-6 rounded-xl border border-dashed border-primary/20">
             <div className="flex justify-between items-center">
-              <Label htmlFor="healthScore" className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Calibration: Health Score</Label>
+              <Label htmlFor="healthScore" className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Calibration: Initial Health</Label>
               <div className="flex items-baseline gap-1">
                 <span className="text-3xl font-black text-primary">{healthScore}</span>
                 <span className="text-xs font-bold text-muted-foreground">%</span>

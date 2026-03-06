@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -5,11 +6,11 @@ import { db } from "@/lib/firebase";
 import { collection, onSnapshot } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
-  Building2, 
   CheckCircle2, 
-  Wrench, 
   AlertTriangle, 
-  MessageSquare,
+  Bell,
+  Activity,
+  Zap,
   ArrowUpRight
 } from "lucide-react";
 import type { DashboardStats } from "@/lib/definitions";
@@ -17,10 +18,10 @@ import type { DashboardStats } from "@/lib/definitions";
 export default function DashboardOverview() {
   const [stats, setStats] = useState<DashboardStats>({
     totalAssets: 0,
-    operational: 0,
-    maintenance: 0,
+    healthy: 0,
+    warning: 0,
     critical: 0,
-    reportedIssues: 0,
+    activeAlerts: 0,
   });
 
   useEffect(() => {
@@ -29,31 +30,31 @@ export default function DashboardOverview() {
       setStats(prev => ({
         ...prev,
         totalAssets: docs.length,
-        operational: docs.filter(d => d.status === 'Operational').length,
-        maintenance: docs.filter(d => d.status === 'Maintenance').length,
-        critical: docs.filter(d => d.status === 'Critical').length,
+        healthy: docs.filter(d => d.healthScore >= 80).length,
+        warning: docs.filter(d => d.healthScore >= 50 && d.healthScore < 80).length,
+        critical: docs.filter(d => d.healthScore < 50).length,
       }));
     });
 
-    const unsubIssues = onSnapshot(collection(db, "issues"), (snapshot) => {
+    const unsubAlerts = onSnapshot(collection(db, "alerts"), (snapshot) => {
       setStats(prev => ({
         ...prev,
-        reportedIssues: snapshot.docs.length,
+        activeAlerts: snapshot.docs.length,
       }));
     });
 
     return () => {
       unsubAssets();
-      unsubIssues();
+      unsubAlerts();
     };
   }, []);
 
   const cards = [
-    { title: "Total Assets", value: stats.totalAssets, icon: Building2, color: "text-blue-500", bg: "bg-blue-500/10", border: "border-blue-500/20" },
-    { title: "Operational", value: stats.operational, icon: CheckCircle2, color: "text-emerald-500", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
-    { title: "Maintenance", value: stats.maintenance, icon: Wrench, color: "text-amber-500", bg: "bg-amber-500/10", border: "border-amber-500/20" },
-    { title: "Critical", value: stats.critical, icon: AlertTriangle, color: "text-rose-500", bg: "bg-rose-500/10", border: "border-rose-500/20" },
-    { title: "Reported Issues", value: stats.reportedIssues, icon: MessageSquare, color: "text-violet-500", bg: "bg-violet-500/10", border: "border-violet-500/20" },
+    { title: "Network Scale", value: stats.totalAssets, icon: Activity, color: "text-blue-500", bg: "bg-blue-500/10", border: "border-blue-500/20" },
+    { title: "Optimal Health", value: stats.healthy, icon: CheckCircle2, color: "text-emerald-500", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
+    { title: "Caution State", value: stats.warning, icon: AlertTriangle, color: "text-amber-500", bg: "bg-amber-500/10", border: "border-amber-500/20" },
+    { title: "Critical Failures", value: stats.critical, icon: Zap, color: "text-rose-500", bg: "bg-rose-500/10", border: "border-rose-500/20" },
+    { title: "Health Alerts", value: stats.activeAlerts, icon: Bell, color: "text-violet-500", bg: "bg-violet-500/10", border: "border-violet-500/20" },
   ];
 
   return (

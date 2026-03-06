@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -46,7 +47,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
-import { MapPin, ArrowRight, Edit2, Trash2, Loader2, AlertCircle } from "lucide-react";
+import { MapPin, ArrowRight, Edit2, Trash2, Loader2, Activity } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { InfrastructureAsset } from "@/lib/definitions";
 
@@ -67,7 +68,7 @@ export default function AssetList({ limit }: AssetListProps) {
   const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
-    let q = query(collection(db, "infrastructure"), orderBy("createdAt", "desc"));
+    let q = query(collection(db, "infrastructure"), orderBy("healthScore", "asc"));
     if (limit) {
       q = query(q, firestoreLimit(limit));
     }
@@ -82,8 +83,8 @@ export default function AssetList({ limit }: AssetListProps) {
   }, [limit]);
 
   const getHealthColor = (score: number) => {
-    if (score > 70) return "bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]";
-    if (score >= 40) return "bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]";
+    if (score >= 80) return "bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]";
+    if (score >= 50) return "bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]";
     return "bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.5)]";
   };
 
@@ -100,10 +101,9 @@ export default function AssetList({ limit }: AssetListProps) {
     if (!deletingAssetId) return;
     try {
       await deleteDoc(doc(db, "infrastructure", deletingAssetId));
-      toast({ title: "Asset deleted", description: "The record has been permanently removed from the network." });
+      toast({ title: "Asset deleted", description: "Permanent removal from surveillance database confirmed." });
     } catch (e) {
-      console.error("Delete error:", e);
-      toast({ variant: "destructive", title: "Delete Failed", description: "System error while attempting to purge record." });
+      toast({ variant: "destructive", title: "Delete Failed", description: "Database transmission error." });
     } finally {
       setDeletingAssetId(null);
     }
@@ -118,11 +118,10 @@ export default function AssetList({ limit }: AssetListProps) {
       const assetRef = doc(db, "infrastructure", editingAsset.id);
       const { id, ...updateData } = editingAsset;
       await updateDoc(assetRef, updateData);
-      toast({ title: "Asset updated successfully", description: `${editingAsset.name} has been resynchronized with current metrics.` });
+      toast({ title: "Asset updated successfully", description: "Metrics resynchronized with central network." });
       setEditingAsset(null);
     } catch (e) {
-      console.error("Update error:", e);
-      toast({ variant: "destructive", title: "Update Failed", description: "Transmission error with central database." });
+      toast({ variant: "destructive", title: "Update Failed", description: "Sync failure detected." });
     } finally {
       setIsUpdating(false);
     }
@@ -132,8 +131,8 @@ export default function AssetList({ limit }: AssetListProps) {
     <Card className="border-none shadow-sm ring-1 ring-border card-glow animate-in-fade">
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <div>
-          <CardTitle className="text-xl font-bold">Infrastructure Assets</CardTitle>
-          <CardDescription>Directory of urban hardware and surveillance metrics.</CardDescription>
+          <CardTitle className="text-xl font-bold">Health Inventory</CardTitle>
+          <CardDescription>Urban hardware surveillance and computed health metrics.</CardDescription>
         </div>
         {limit && (
            <ArrowRight className="h-5 w-5 text-muted-foreground/30" />
@@ -144,67 +143,72 @@ export default function AssetList({ limit }: AssetListProps) {
           <TableHeader>
             <TableRow className="bg-muted/50 hover:bg-muted/50">
               <TableHead className="font-bold">Asset Name</TableHead>
-              <TableHead className="font-bold">Type</TableHead>
-              <TableHead className="font-bold">Location</TableHead>
+              <TableHead className="font-bold">Utilization</TableHead>
+              <TableHead className="font-bold">Health Index</TableHead>
               <TableHead className="font-bold">Status</TableHead>
-              <TableHead className="font-bold">Health</TableHead>
               {!limit && <TableHead className="text-right font-bold">Actions</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {assets.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={limit ? 5 : 6} className="text-center py-12 text-muted-foreground">
-                  No records found in the intelligence network.
+                <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
+                  No health data records found.
                 </TableCell>
               </TableRow>
             ) : (
-              assets.map((asset) => (
-                <TableRow key={asset.id} className="hover:bg-primary/[0.02] transition-colors group">
-                  <TableCell className="font-semibold">{asset.name}</TableCell>
-                  <TableCell>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-secondary text-secondary-foreground uppercase tracking-wider">
-                      {asset.type}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col gap-1">
-                      <div className="flex items-center gap-1.5 text-muted-foreground text-sm">
-                        <MapPin className={`h-3.5 w-3.5 ${(asset.lat && asset.lng) ? 'text-primary' : 'text-rose-500'}`} />
-                        {asset.location}
-                      </div>
-                      {(!asset.lat || !asset.lng) && (
-                        <div className="flex items-center gap-1 text-rose-500 text-[9px] font-bold uppercase tracking-tighter">
-                          <AlertCircle className="h-2 w-2" /> No Geo-Coordinates
+              assets.map((asset) => {
+                const util = asset.capacity ? (asset.usage! / asset.capacity!) * 100 : 0;
+                return (
+                  <TableRow key={asset.id} className="hover:bg-primary/[0.02] transition-colors group">
+                    <TableCell>
+                       <div className="flex flex-col">
+                          <span className="font-semibold">{asset.name}</span>
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase">{asset.type}</span>
+                       </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-1.5 w-32">
+                        <div className="flex justify-between items-center text-[10px] font-bold">
+                           <span className="text-muted-foreground uppercase">Load</span>
+                           <span className={util > 90 ? 'text-rose-500' : ''}>{util.toFixed(0)}%</span>
                         </div>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={getStatusVariant(asset.status)} className="font-bold px-2.5 py-0.5 uppercase tracking-tighter text-[10px]">
-                      {asset.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <div className={`h-2.5 w-2.5 rounded-full ${getHealthColor(asset.healthScore)}`} />
-                      <span className="text-xs font-bold">{asset.healthScore}%</span>
-                    </div>
-                  </TableCell>
-                  {!limit && (
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-500" onClick={() => setEditingAsset(asset)}>
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-rose-500" onClick={() => setDeletingAssetId(asset.id || null)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="h-1 w-full bg-muted rounded-full overflow-hidden">
+                           <div 
+                              className={`h-full transition-all duration-1000 ${util > 90 ? 'bg-rose-500' : 'bg-primary'}`} 
+                              style={{ width: `${util}%` }} 
+                           />
+                        </div>
                       </div>
                     </TableCell>
-                  )}
-                </TableRow>
-              ))
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className={`h-2.5 w-2.5 rounded-full ${getHealthColor(asset.healthScore)}`} />
+                        <span className={`text-sm font-black ${asset.healthScore < 50 ? 'text-rose-500' : ''}`}>
+                          {asset.healthScore}%
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={getStatusVariant(asset.status)} className="font-bold px-2.5 py-0.5 uppercase tracking-tighter text-[10px]">
+                        {asset.status}
+                      </Badge>
+                    </TableCell>
+                    {!limit && (
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-500" onClick={() => setEditingAsset(asset)}>
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-rose-500" onClick={() => setDeletingAssetId(asset.id || null)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                )
+              })
             )}
           </TableBody>
         </Table>
@@ -214,8 +218,8 @@ export default function AssetList({ limit }: AssetListProps) {
       <Dialog open={!!editingAsset} onOpenChange={(open) => !open && setEditingAsset(null)}>
         <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit Infrastructure</DialogTitle>
-            <DialogDescription>Modify existing asset parameters and geographic deployment.</DialogDescription>
+            <DialogTitle>Edit Health Metrics</DialogTitle>
+            <DialogDescription>Manually override hardware parameters or re-calibrate geolocation.</DialogDescription>
           </DialogHeader>
           {editingAsset && (
             <form onSubmit={handleUpdate} className="space-y-6 pt-4">
@@ -244,47 +248,31 @@ export default function AssetList({ limit }: AssetListProps) {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Status</Label>
-                    <Select value={editingAsset.status} onValueChange={(val: any) => setEditingAsset({...editingAsset, status: val})}>
-                      <SelectTrigger className="bg-muted/30"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Operational">Operational</SelectItem>
-                        <SelectItem value="Maintenance">Maintenance</SelectItem>
-                        <SelectItem value="Critical">Critical</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Label>Design Capacity</Label>
+                    <Input 
+                      type="number"
+                      value={editingAsset.capacity} 
+                      onChange={(e) => setEditingAsset({...editingAsset, capacity: Number(e.target.value)})}
+                      className="bg-muted/30"
+                    />
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-location">Sector / Area Description</Label>
-                  <Input 
-                    id="edit-location" 
-                    value={editingAsset.location} 
-                    onChange={(e) => setEditingAsset({...editingAsset, location: e.target.value})}
-                    className="bg-muted/30"
-                  />
                 </div>
 
                 <div className="space-y-3">
                   <Label className="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
-                    <MapPin className="h-3 w-3" /> Position on Map
+                    <MapPin className="h-3 w-3" /> Position Update
                   </Label>
                   <LocationPicker 
                     initialLat={editingAsset.lat || undefined} 
                     initialLng={editingAsset.lng || undefined} 
                     onLocationSelect={(lat, lng) => setEditingAsset({...editingAsset, lat, lng})}
                   />
-                  {(editingAsset.lat && editingAsset.lng) && (
-                    <div className="text-[10px] font-mono text-center text-muted-foreground opacity-70">
-                      SAVED POS: {editingAsset.lat.toFixed(6)}, {editingAsset.lng.toFixed(6)}
-                    </div>
-                  )}
                 </div>
 
                 <div className="space-y-4 pt-2">
                    <div className="flex justify-between items-center">
-                      <Label className="text-xs font-bold uppercase">Health Score</Label>
-                      <span className="text-lg font-bold text-primary">{editingAsset.healthScore}%</span>
+                      <Label className="text-xs font-bold uppercase text-muted-foreground">Calibrated Health Score</Label>
+                      <span className="text-lg font-black text-primary">{editingAsset.healthScore}%</span>
                    </div>
                    <Slider 
                     value={[editingAsset.healthScore]} 
@@ -301,9 +289,9 @@ export default function AssetList({ limit }: AssetListProps) {
                 >
                   {isUpdating ? (
                     <span className="flex items-center gap-2">
-                      <Loader2 className="h-4 w-4 animate-spin" /> Synchronizing...
+                      <Loader2 className="h-4 w-4 animate-spin" /> Resyncing...
                     </span>
-                  ) : "Update Infrastructure"}
+                  ) : "Update Asset Intelligence"}
                 </Button>
               </DialogFooter>
             </form>
@@ -317,12 +305,12 @@ export default function AssetList({ limit }: AssetListProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the infrastructure record from the surveillance database.
+              This action will permanently purge the asset from the intelligence monitoring system.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-rose-600 hover:bg-rose-700">Delete Asset</AlertDialogAction>
+            <AlertDialogAction onClick={handleDelete} className="bg-rose-600 hover:bg-rose-700">Purge Asset</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -1,6 +1,7 @@
 
 export type InfrastructureStatus = 'Operational' | 'Maintenance' | 'Critical';
 export type InfrastructureType = 'Road' | 'Bridge' | 'Pipeline' | 'Streetlight' | 'Public Facility';
+export type AlertSeverity = 'Warning' | 'Critical';
 
 export interface InfrastructureAsset {
   id?: string;
@@ -11,7 +12,24 @@ export interface InfrastructureAsset {
   healthScore: number;
   lat?: number;
   lng?: number;
+  temperature?: number;
+  pressure?: number;
+  usage?: number;
+  capacity?: number;
+  isAbnormal?: boolean;
+  lastMaintenance?: any;
   createdAt?: any;
+}
+
+export interface InfrastructureAlert {
+  id?: string;
+  assetId: string;
+  assetName: string;
+  type: string;
+  severity: AlertSeverity;
+  description: string;
+  location: string;
+  timestamp: any;
 }
 
 export interface InfrastructureIssue {
@@ -25,13 +43,13 @@ export interface InfrastructureIssue {
 
 export type DashboardStats = {
   totalAssets: number;
-  operational: number;
-  maintenance: number;
+  healthy: number;
+  warning: number;
   critical: number;
-  reportedIssues: number;
+  activeAlerts: number;
 };
 
-// State types for legacy AI flows to prevent module-not-found errors
+// State types for legacy AI flows
 export type AssistantState = {
   suggestion?: string;
   error?: string | {
