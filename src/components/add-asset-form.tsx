@@ -20,11 +20,11 @@ export default function AddAssetForm() {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setLoading(true);
-
     const form = event.currentTarget;
     const formData = new FormData(form);
     
+    setLoading(true);
+
     // Chennai default center for demo coords if not provided
     const DEFAULT_LAT = 13.0827;
     const DEFAULT_LNG = 80.2707;
@@ -43,19 +43,19 @@ export default function AddAssetForm() {
     try {
       await addDoc(collection(db, "infrastructure"), assetData);
       toast({ 
-        title: "Asset Registered Successfully", 
+        title: "Asset successfully added", 
         description: `${assetData.name} has been onboarded to the smart city network.` 
       });
       form.reset();
       setHealthScore(100);
     } catch (error) {
+      console.error("Firestore error:", error);
       toast({ 
         variant: "destructive", 
         title: "Registration Failed", 
         description: "Integration error. Please check your network connectivity." 
       });
     } finally {
-      // Explicitly reset loading state to ensure button returns to normal
       setLoading(false);
     }
   }
@@ -132,14 +132,18 @@ export default function AddAssetForm() {
             />
           </div>
 
-          <Button type="submit" className="w-full h-12 text-base font-bold btn-gradient" disabled={loading}>
+          <Button 
+            type="submit" 
+            className="w-full h-12 text-base font-bold btn-gradient" 
+            disabled={loading}
+          >
             {loading ? (
               <span className="flex items-center gap-2">
                 <Loader2 className="h-5 w-5 animate-spin" /> Synchronizing...
               </span>
             ) : (
               <span className="flex items-center gap-2">
-                <Save className="h-5 w-5" /> Register System Asset
+                <Save className="h-5 w-5" /> Register Infrastructure Asset
               </span>
             )}
           </Button>
