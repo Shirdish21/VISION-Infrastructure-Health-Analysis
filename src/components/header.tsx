@@ -10,9 +10,13 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 
 export default function Header() {
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [currentTime, setCurrentTime] = useState<Date | null>(null);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
+    setCurrentTime(new Date());
+    
     const timer = setInterval(() => {
       setCurrentTime(new Date());
     }, 1000);
@@ -38,9 +42,9 @@ export default function Header() {
     });
   };
 
-  const dayOfWeek = currentTime.toLocaleDateString('en-US', { weekday: 'long' });
-  const timeString = formatTime(currentTime);
-  const dateString = formatDate(currentTime);
+  const dayOfWeek = currentTime ? currentTime.toLocaleDateString('en-US', { weekday: 'long' }) : '';
+  const timeString = currentTime ? formatTime(currentTime) : '--:--:--';
+  const dateString = currentTime ? formatDate(currentTime) : '';
 
   return (
     <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between border-b bg-background/80 px-4 backdrop-blur-md md:px-6">
@@ -61,16 +65,18 @@ export default function Header() {
       
       <div className="flex items-center gap-4">
         {/* Time and Date Display */}
-        <div className="hidden md:flex items-center gap-3 px-3 py-1.5 bg-muted/30 rounded-lg border border-border/50">
-          <Clock className="h-4 w-4 text-primary" />
-          <div className="flex flex-col">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-bold text-foreground">{timeString}</span>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{dayOfWeek}</span>
+        {mounted && (
+          <div className="hidden md:flex items-center gap-3 px-3 py-1.5 bg-muted/30 rounded-lg border border-border/50">
+            <Clock className="h-4 w-4 text-primary" />
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-foreground">{timeString}</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{dayOfWeek}</span>
+              </div>
+              <span className="text-[10px] text-muted-foreground font-medium">{dateString}</span>
             </div>
-            <span className="text-[10px] text-muted-foreground font-medium">{dateString}</span>
           </div>
-        </div>
+        )}
 
         <ThemeToggle />
         <Button variant="ghost" size="icon" className="rounded-full relative">

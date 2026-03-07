@@ -13,7 +13,8 @@ import {
   Bell,
   BarChart3,
   Stethoscope,
-  Zap
+  Zap,
+  Sparkles
 } from "lucide-react"
 
 import {
@@ -40,6 +41,7 @@ export function AppSidebar({ currentTab, onTabChange }: AppSidebarProps) {
     { id: "electric", label: "Electric Grid", icon: Zap },
     { id: "alerts", label: "Alerts", icon: Bell },
     { id: "analytics", label: "Analytics", icon: BarChart3 },
+    { id: "ai-assistant", label: "AI Assistant", icon: Sparkles },
     { id: "add", label: "Add Asset", icon: PlusCircle },
     { id: "report", label: "Report Issue", icon: AlertCircle },
     { id: "issues", label: "Issue Logs", icon: History },

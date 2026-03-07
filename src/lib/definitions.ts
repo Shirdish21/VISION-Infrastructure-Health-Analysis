@@ -41,9 +41,10 @@ export interface InfrastructureAlert {
 
 export interface InfrastructureIssue {
   id?: string;
-  issueType: 'Pothole' | 'Broken Streetlight' | 'Water Leakage' | 'Road Damage';
+  issueType: 'Pothole' | 'Broken Streetlight' | 'Water Leakage' | 'Road Damage' | 'Power Failure' | 'Traffic Congestion';
   description: string;
   location: string;
+  date?: string; // ISO date string for when issue occurred
   status: 'Reported' | 'In Progress' | 'Resolved';
   createdAt?: any;
 }

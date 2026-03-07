@@ -53,7 +53,7 @@ import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { MapPin, ArrowRight, Edit2, Trash2, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import type { InfrastructureAsset, HealthStatus, AlertSeverity } from "@/lib/definitions";
+import type { InfrastructureAsset, HealthStatus, AlertSeverity, FilterState } from "@/lib/definitions";
 
 const LocationPicker = dynamic(() => import("./location-picker"), {
   ssr: false,
@@ -62,11 +62,7 @@ const LocationPicker = dynamic(() => import("./location-picker"), {
 
 interface AssetListProps {
   limit?: number;
-  filters?: {
-    type: string;
-    status: string;
-    zone: string;
-  };
+  filters?: FilterState;
 }
 
 export default function AssetList({ limit, filters }: AssetListProps) {
@@ -90,12 +86,30 @@ export default function AssetList({ limit, filters }: AssetListProps) {
           const statusMatch = filters.status === 'all' || asset.healthStatus === filters.status;
           const zoneMatch = filters.zone === 'all' || asset.zone === filters.zone;
           
-          // Date filtering
+          // Date filtering - compare dates properly
           let dateMatch = true;
           if (filters.date && asset.createdAt) {
-            const assetDate = asset.createdAt?.toDate ? asset.createdAt.toDate() : new Date(asset.createdAt);
-            const filterDate = new Date(filters.date);
-            dateMatch = assetDate.toDateString() === filterDate.toDateString();
+            try {
+              let assetDate: Date | null = null;
+              if (asset.createdAt?.toDate) {
+                assetDate = asset.createdAt.toDate();
+              } else if (asset.createdAt instanceof Date) {
+                assetDate = asset.createdAt;
+              } else if (typeof asset.createdAt === 'string' || typeof asset.createdAt === 'number') {
+                assetDate = new Date(asset.createdAt);
+              }
+              
+              if (assetDate) {
+                const filterDate = new Date(filters.date);
+                // Compare dates ignoring time
+                const assetDateStr = assetDate.toISOString().split('T')[0];
+                const filterDateStr = filterDate.toISOString().split('T')[0];
+                dateMatch = assetDateStr === filterDateStr;
+              }
+            } catch (e) {
+              // If date parsing fails, don't filter by date
+              dateMatch = true;
+            }
           }
           
           return typeMatch && statusMatch && zoneMatch && dateMatch;
@@ -281,7 +295,7 @@ export default function AssetList({ limit, filters }: AssetListProps) {
       </CardContent>
 
       {/* Edit Modal */}
-      <Dialog open={!!editingAsset} onOpenChange={(open) => !open && setEditingAsset(null)}>
+      <Dialog open={!!editingAsset} onOpenChange={(open: boolean) => !open && setEditingAsset(null)}>
         <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Admin Health Overwrite</DialogTitle>
@@ -360,7 +374,7 @@ export default function AssetList({ limit, filters }: AssetListProps) {
                    </div>
                    <Slider 
                     value={[editingAsset.healthScore]} 
-                    onValueChange={(val) => setEditingAsset({...editingAsset, healthScore: val[0]})}
+                    onValueChange={(val: number[]) => setEditingAsset({...editingAsset, healthScore: val[0]})}
                     max={100}
                     step={1}
                    />
@@ -385,7 +399,7 @@ export default function AssetList({ limit, filters }: AssetListProps) {
       </Dialog>
 
       {/* Delete Confirmation */}
-      <AlertDialog open={!!deletingAssetId} onOpenChange={(open) => !open && setDeletingAssetId(null)}>
+      <AlertDialog open={!!deletingAssetId} onOpenChange={(open: boolean) => !open && setDeletingAssetId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>

@@ -27,12 +27,30 @@ export default function HealthMonitoring({ filters }: HealthMonitoringProps) {
         const statusMatch = filters.status === 'all' || asset.healthStatus === filters.status;
         const zoneMatch = filters.zone === 'all' || asset.zone === filters.zone;
         
-        // Date filtering
+        // Date filtering - compare dates properly
         let dateMatch = true;
         if (filters.date && asset.createdAt) {
-          const assetDate = asset.createdAt?.toDate ? asset.createdAt.toDate() : new Date(asset.createdAt);
-          const filterDate = new Date(filters.date);
-          dateMatch = assetDate.toDateString() === filterDate.toDateString();
+          try {
+            let assetDate: Date | null = null;
+            if (asset.createdAt?.toDate) {
+              assetDate = asset.createdAt.toDate();
+            } else if (asset.createdAt instanceof Date) {
+              assetDate = asset.createdAt;
+            } else if (typeof asset.createdAt === 'string' || typeof asset.createdAt === 'number') {
+              assetDate = new Date(asset.createdAt);
+            }
+            
+            if (assetDate) {
+              const filterDate = new Date(filters.date);
+              // Compare dates ignoring time
+              const assetDateStr = assetDate.toISOString().split('T')[0];
+              const filterDateStr = filterDate.toISOString().split('T')[0];
+              dateMatch = assetDateStr === filterDateStr;
+            }
+          } catch (e) {
+            // If date parsing fails, don't filter by date
+            dateMatch = true;
+          }
         }
         
         return typeMatch && statusMatch && zoneMatch && dateMatch;

@@ -18,12 +18,17 @@ import HealthSimulator from "@/components/health-simulator";
 import ElectricGrid from "@/components/electric-grid";
 import CapacityUsageComparison from "@/components/capacity-usage-comparison";
 import HistoricalDataAnalysis from "@/components/historical-data-analysis";
+import AIAssistant from "@/components/ai-assistant";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Filter, X, ShieldCheck, Calendar } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 import type { FilterState } from "@/lib/definitions";
 
 const MapView = dynamic(() => import("@/components/map-view"), {
@@ -43,9 +48,22 @@ export default function Home() {
     zone: "all",
     date: undefined
   });
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
 
   const resetFilters = () => {
     setFilters({ type: "all", status: "all", zone: "all", date: undefined });
+    setSelectedDate(undefined);
+  };
+
+  const handleDateSelect = (date: Date | undefined) => {
+    setSelectedDate(date);
+    if (date) {
+      setFilters(f => ({ ...f, date: format(date, "yyyy-MM-dd") }));
+    } else {
+      setFilters(f => ({ ...f, date: undefined }));
+    }
+    setDatePickerOpen(false);
   };
 
   const isFiltered = filters.type !== "all" || filters.status !== "all" || filters.zone !== "all" || filters.date;
@@ -78,7 +96,7 @@ export default function Home() {
                   <Filter className="h-3 w-3" /> Filters
                 </div>
                 
-                <Select value={filters.type} onValueChange={(v) => setFilters(f => ({ ...f, type: v }))}>
+                <Select value={filters.type} onValueChange={(v: string) => setFilters(f => ({ ...f, type: v }))}>
                   <SelectTrigger className="w-[140px] h-9 text-xs bg-background">
                     <SelectValue placeholder="Type" />
                   </SelectTrigger>
@@ -94,7 +112,7 @@ export default function Home() {
                   </SelectContent>
                 </Select>
 
-                <Select value={filters.status} onValueChange={(v) => setFilters(f => ({ ...f, status: v }))}>
+                <Select value={filters.status} onValueChange={(v: string) => setFilters(f => ({ ...f, status: v }))}>
                   <SelectTrigger className="w-[140px] h-9 text-xs bg-background">
                     <SelectValue placeholder="Health" />
                   </SelectTrigger>
@@ -106,7 +124,7 @@ export default function Home() {
                   </SelectContent>
                 </Select>
 
-                <Select value={filters.zone} onValueChange={(v) => setFilters(f => ({ ...f, zone: v }))}>
+                <Select value={filters.zone} onValueChange={(v: string) => setFilters(f => ({ ...f, zone: v }))}>
                   <SelectTrigger className="w-[140px] h-9 text-xs bg-background">
                     <SelectValue placeholder="Zone" />
                   </SelectTrigger>
@@ -118,15 +136,29 @@ export default function Home() {
                   </SelectContent>
                 </Select>
 
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                  <Input
-                    type="date"
-                    value={filters.date || ""}
-                    onChange={(e) => setFilters(f => ({ ...f, date: e.target.value || undefined }))}
-                    className="w-[140px] h-9 text-xs bg-background"
-                  />
-                </div>
+                <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-[140px] h-9 text-xs justify-start text-left font-normal bg-background",
+                        !selectedDate && "text-muted-foreground"
+                      )}
+                    >
+                      <Calendar className="mr-2 h-3.5 w-3.5" />
+                      {selectedDate ? format(selectedDate, "MMM dd, yyyy") : "Select date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={handleDateSelect}
+                      initialFocus
+                      disabled={(date) => date > new Date()}
+                    />
+                  </PopoverContent>
+                </Popover>
 
                 {isFiltered && (
                   <Button variant="ghost" size="icon" onClick={resetFilters} className="h-9 w-9 text-rose-500">
@@ -162,6 +194,10 @@ export default function Home() {
               <HealthAnalytics />
               <CapacityUsageComparison />
               <HistoricalDataAnalysis />
+            </TabsContent>
+
+            <TabsContent value="ai-assistant" className="outline-none">
+              <AIAssistant />
             </TabsContent>
 
             <TabsContent value="electric" className="outline-none">

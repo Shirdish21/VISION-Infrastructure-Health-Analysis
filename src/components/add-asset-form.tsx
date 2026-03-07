@@ -110,11 +110,13 @@ export default function AddAssetForm() {
         title: "Asset Onboarded Successfully", 
         description: `${assetData.name} synchronized with intelligence score ${finalScore}%.` 
       });
-      // Reset form after successful submission
+      
+      // Reset form and state
       form.reset();
       setCoords(null);
-      // Force a small delay to ensure UI updates
-      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Ensure loading state resets
+      setLoading(false);
     } catch (error) {
       console.error("Firestore error:", error);
       toast({ 
@@ -122,7 +124,6 @@ export default function AddAssetForm() {
         title: "Registration Failed", 
         description: "Integration error. Check connectivity." 
       });
-    } finally {
       setLoading(false);
     }
   }
