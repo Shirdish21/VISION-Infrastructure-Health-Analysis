@@ -1,14 +1,47 @@
 
 "use client"
 
+import { useState, useEffect } from "react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Bell, ShieldCheck } from "lucide-react";
+import { Bell, ShieldCheck, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 
 export default function Header() {
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit', 
+      second: '2-digit',
+      hour12: true 
+    });
+  };
+
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString('en-US', { 
+      weekday: 'long',
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+  };
+
+  const dayOfWeek = currentTime.toLocaleDateString('en-US', { weekday: 'long' });
+  const timeString = formatTime(currentTime);
+  const dateString = formatDate(currentTime);
+
   return (
     <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between border-b bg-background/80 px-4 backdrop-blur-md md:px-6">
       <div className="flex items-center gap-4">
@@ -26,7 +59,19 @@ export default function Header() {
         </div>
       </div>
       
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-4">
+        {/* Time and Date Display */}
+        <div className="hidden md:flex items-center gap-3 px-3 py-1.5 bg-muted/30 rounded-lg border border-border/50">
+          <Clock className="h-4 w-4 text-primary" />
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-bold text-foreground">{timeString}</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{dayOfWeek}</span>
+            </div>
+            <span className="text-[10px] text-muted-foreground font-medium">{dateString}</span>
+          </div>
+        </div>
+
         <ThemeToggle />
         <Button variant="ghost" size="icon" className="rounded-full relative">
           <Bell className="h-5 w-5" />

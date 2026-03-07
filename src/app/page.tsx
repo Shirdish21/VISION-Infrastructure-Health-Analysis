@@ -16,10 +16,13 @@ import AlertsList from "@/components/alerts-list";
 import HealthAnalytics from "@/components/health-analytics";
 import HealthSimulator from "@/components/health-simulator";
 import ElectricGrid from "@/components/electric-grid";
+import CapacityUsageComparison from "@/components/capacity-usage-comparison";
+import HistoricalDataAnalysis from "@/components/historical-data-analysis";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Filter, X, ShieldCheck } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Filter, X, ShieldCheck, Calendar } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { FilterState } from "@/lib/definitions";
 
@@ -37,14 +40,15 @@ export default function Home() {
   const [filters, setFilters] = useState<FilterState>({
     type: "all",
     status: "all",
-    zone: "all"
+    zone: "all",
+    date: undefined
   });
 
   const resetFilters = () => {
-    setFilters({ type: "all", status: "all", zone: "all" });
+    setFilters({ type: "all", status: "all", zone: "all", date: undefined });
   };
 
-  const isFiltered = filters.type !== "all" || filters.status !== "all" || filters.zone !== "all";
+  const isFiltered = filters.type !== "all" || filters.status !== "all" || filters.zone !== "all" || filters.date;
 
   return (
     <SidebarProvider>
@@ -114,6 +118,16 @@ export default function Home() {
                   </SelectContent>
                 </Select>
 
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    type="date"
+                    value={filters.date || ""}
+                    onChange={(e) => setFilters(f => ({ ...f, date: e.target.value || undefined }))}
+                    className="w-[140px] h-9 text-xs bg-background"
+                  />
+                </div>
+
                 {isFiltered && (
                   <Button variant="ghost" size="icon" onClick={resetFilters} className="h-9 w-9 text-rose-500">
                     <X className="h-4 w-4" />
@@ -144,8 +158,10 @@ export default function Home() {
               <AlertsList />
             </TabsContent>
 
-            <TabsContent value="analytics" className="outline-none">
+            <TabsContent value="analytics" className="outline-none space-y-8">
               <HealthAnalytics />
+              <CapacityUsageComparison />
+              <HistoricalDataAnalysis />
             </TabsContent>
 
             <TabsContent value="electric" className="outline-none">

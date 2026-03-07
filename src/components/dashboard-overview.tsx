@@ -36,7 +36,16 @@ export default function DashboardOverview({ filters }: DashboardOverviewProps) {
         const typeMatch = filters.type === 'all' || asset.type === filters.type;
         const statusMatch = filters.status === 'all' || asset.healthStatus === filters.status;
         const zoneMatch = filters.zone === 'all' || asset.zone === filters.zone;
-        return typeMatch && statusMatch && zoneMatch;
+        
+        // Date filtering
+        let dateMatch = true;
+        if (filters.date && asset.createdAt) {
+          const assetDate = asset.createdAt?.toDate ? asset.createdAt.toDate() : new Date(asset.createdAt);
+          const filterDate = new Date(filters.date);
+          dateMatch = assetDate.toDateString() === filterDate.toDateString();
+        }
+        
+        return typeMatch && statusMatch && zoneMatch && dateMatch;
       });
 
       // Classification: 80-100: Optimal, 60-79: Standard, 30-59: Warning, 0-29: Critical

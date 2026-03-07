@@ -89,7 +89,16 @@ export default function AssetList({ limit, filters }: AssetListProps) {
           const typeMatch = filters.type === 'all' || asset.type === filters.type;
           const statusMatch = filters.status === 'all' || asset.healthStatus === filters.status;
           const zoneMatch = filters.zone === 'all' || asset.zone === filters.zone;
-          return typeMatch && statusMatch && zoneMatch;
+          
+          // Date filtering
+          let dateMatch = true;
+          if (filters.date && asset.createdAt) {
+            const assetDate = asset.createdAt?.toDate ? asset.createdAt.toDate() : new Date(asset.createdAt);
+            const filterDate = new Date(filters.date);
+            dateMatch = assetDate.toDateString() === filterDate.toDateString();
+          }
+          
+          return typeMatch && statusMatch && zoneMatch && dateMatch;
         }));
       } else {
         setAssets(all);
@@ -129,7 +138,7 @@ export default function AssetList({ limit, filters }: AssetListProps) {
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingAsset?.id) return;
+    if (!editingAsset?.id || isUpdating) return; // Prevent double submission
     
     setIsUpdating(true);
     try {
@@ -174,6 +183,8 @@ export default function AssetList({ limit, filters }: AssetListProps) {
       await updateDoc(assetRef, dataToSave);
       toast({ title: "Asset updated", description: "Intelligence metrics refreshed." });
       setEditingAsset(null);
+      // Force a small delay to ensure UI updates
+      await new Promise(resolve => setTimeout(resolve, 100));
     } catch (e) {
       console.error(e);
       toast({ variant: "destructive", title: "Update Failed", description: "Sync failure." });

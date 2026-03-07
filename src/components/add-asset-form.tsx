@@ -26,6 +26,8 @@ export default function AddAssetForm() {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (loading) return; // Prevent double submission
+    
     const form = event.currentTarget;
     const formData = new FormData(form);
     
@@ -108,8 +110,11 @@ export default function AddAssetForm() {
         title: "Asset Onboarded Successfully", 
         description: `${assetData.name} synchronized with intelligence score ${finalScore}%.` 
       });
+      // Reset form after successful submission
       form.reset();
       setCoords(null);
+      // Force a small delay to ensure UI updates
+      await new Promise(resolve => setTimeout(resolve, 100));
     } catch (error) {
       console.error("Firestore error:", error);
       toast({ 

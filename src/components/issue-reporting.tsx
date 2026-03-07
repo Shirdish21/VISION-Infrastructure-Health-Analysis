@@ -18,6 +18,8 @@ export default function IssueReporting() {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (loading) return; // Prevent double submission
+    
     setLoading(true);
 
     const form = event.currentTarget;
@@ -33,8 +35,12 @@ export default function IssueReporting() {
     try {
       await addDoc(collection(db, "issues"), issueData);
       toast({ title: "Signal Sent", description: "Civil authorities have received your transmission." });
+      // Reset form after successful submission
       form.reset();
+      // Force a small delay to ensure UI updates
+      await new Promise(resolve => setTimeout(resolve, 100));
     } catch (error) {
+      console.error("Error submitting issue:", error);
       toast({ variant: "destructive", title: "Transmission Failed", description: "Could not sync report with central database." });
     } finally {
       setLoading(false);

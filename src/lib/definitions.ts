@@ -60,6 +60,7 @@ export type FilterState = {
   type: string;
   status: string;
   zone: string;
+  date?: string; // ISO date string for filtering
 };
 
 // State types for legacy AI flows

@@ -67,8 +67,71 @@ export default function MapView() {
 
     const getMarkerColor = (score: number) => {
       if (score >= 80) return "#10b981"; // Emerald 500
+      if (score >= 60) return "#3b82f6"; // Blue 500
       if (score >= 40) return "#f59e0b"; // Amber 500
       return "#ef4444"; // Red 500
+    };
+
+    const getAssetIcon = (asset: InfrastructureAsset) => {
+      const isElectric = ["Transformer", "Substation", "Power Line"].includes(asset.type);
+      const markerColor = getMarkerColor(asset.healthScore);
+      
+      // Smart icon selection based on asset type and health
+      let iconSymbol = '🏗️';
+      if (isElectric) {
+        iconSymbol = asset.type === 'Transformer' ? '⚡' : asset.type === 'Substation' ? '🔌' : '📡';
+      } else {
+        if (asset.type === 'Road') iconSymbol = '🛣️';
+        else if (asset.type === 'Bridge') iconSymbol = '🌉';
+        else if (asset.type === 'Pipeline') iconSymbol = '🔧';
+        else if (asset.type === 'Streetlight') iconSymbol = '💡';
+      }
+
+      // Create custom icon with health-based styling
+      const iconSize = asset.healthScore < 30 ? 32 : asset.healthScore < 60 ? 28 : 24;
+      const pulseSize = asset.healthScore < 30 ? 40 : asset.healthScore < 60 ? 36 : 0;
+      
+      return L.divIcon({
+        html: `
+          <div style="position: relative; display: flex; align-items: center; justify-content: center;">
+            ${asset.healthScore < 60 ? `
+              <div style="
+                position: absolute;
+                width: ${pulseSize}px;
+                height: ${pulseSize}px;
+                border-radius: 50%;
+                background: ${markerColor};
+                opacity: 0.3;
+                animation: pulse 2s infinite;
+              "></div>
+            ` : ''}
+            <div style="
+              width: ${iconSize}px;
+              height: ${iconSize}px;
+              border-radius: 50%;
+              background: ${markerColor};
+              border: 3px solid ${isElectric ? '#fbbf24' : '#ffffff'};
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: ${iconSize * 0.6}px;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.3), 0 0 0 2px ${markerColor}40;
+              z-index: 10;
+            ">
+              ${iconSymbol}
+            </div>
+          </div>
+          <style>
+            @keyframes pulse {
+              0%, 100% { transform: scale(1); opacity: 0.3; }
+              50% { transform: scale(1.2); opacity: 0.1; }
+            }
+          </style>
+        `,
+        className: 'custom-asset-marker',
+        iconSize: [iconSize, iconSize],
+        iconAnchor: [iconSize / 2, iconSize / 2],
+      });
     };
 
     assets.forEach((asset) => {
@@ -76,56 +139,76 @@ export default function MapView() {
         const markerColor = getMarkerColor(asset.healthScore);
         const isElectric = ["Transformer", "Substation", "Power Line"].includes(asset.type);
         
-        const marker = L.circleMarker([asset.lat, asset.lng], {
-          radius: isElectric ? 14 : 12,
-          fillColor: markerColor,
-          fillOpacity: 0.9,
-          color: isElectric ? "#fbbf24" : "#ffffff", // Gold border for electric
-          weight: isElectric ? 4 : 3,
+        // Use custom icon for better visual representation
+        const customIcon = getAssetIcon(asset);
+        
+        const marker = L.marker([asset.lat, asset.lng], {
+          icon: customIcon,
         });
 
+        const utilization = asset.capacity ? ((asset.usage || 0) / asset.capacity) * 100 : 0;
         const popupContent = `
-          <div class="p-2 min-w-[180px] font-body">
-            <h3 class="text-sm font-black mb-3 border-b pb-1" style="color: #2563eb; display: flex; align-items: center; gap: 5px;">
+          <div class="p-3 min-w-[220px] font-body">
+            <h3 class="text-sm font-black mb-3 border-b pb-2" style="color: #2563eb; display: flex; align-items: center; gap: 5px;">
               ${isElectric ? '⚡' : '🏗️'} ${asset.name}
             </h3>
             <div style="font-size: 11px; display: flex; flex-direction: column; gap: 6px;">
               <div style="display: flex; justify-content: space-between;">
-                <span style="color: #64748b; font-weight: 700; text-transform: uppercase;">Class:</span>
+                <span style="color: #64748b; font-weight: 700; text-transform: uppercase; font-size: 10px;">Class:</span>
                 <span style="font-weight: 700;">${asset.type}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between;">
+                <span style="color: #64748b; font-weight: 700; text-transform: uppercase; font-size: 10px;">Zone:</span>
+                <span style="font-weight: 700;">${asset.zone}</span>
               </div>
               ${isElectric ? `
               <div style="display: flex; justify-content: space-between;">
-                <span style="color: #64748b; font-weight: 700; text-transform: uppercase;">Voltage:</span>
+                <span style="color: #64748b; font-weight: 700; text-transform: uppercase; font-size: 10px;">Voltage:</span>
                 <span style="font-weight: 700;">${asset.voltageLevel || '11kV'}</span>
               </div>
               <div style="display: flex; justify-content: space-between;">
-                <span style="color: #64748b; font-weight: 700; text-transform: uppercase;">Grid Load:</span>
-                <span style="font-weight: 700;">${asset.loadPercentage || 0}%</span>
+                <span style="color: #64748b; font-weight: 700; text-transform: uppercase; font-size: 10px;">Grid Load:</span>
+                <span style="font-weight: 700; color: ${utilization > 95 ? '#ef4444' : ''}">${asset.loadPercentage || 0}%</span>
+              </div>
+              ` : `
+              <div style="display: flex; justify-content: space-between;">
+                <span style="color: #64748b; font-weight: 700; text-transform: uppercase; font-size: 10px;">Utilization:</span>
+                <span style="font-weight: 700; color: ${utilization > 95 ? '#ef4444' : ''}">${utilization.toFixed(1)}%</span>
+              </div>
+              `}
+              ${asset.temperature ? `
+              <div style="display: flex; justify-content: space-between;">
+                <span style="color: #64748b; font-weight: 700; text-transform: uppercase; font-size: 10px;">Temperature:</span>
+                <span style="font-weight: 700; color: ${asset.temperature > 80 ? '#ef4444' : ''}">${asset.temperature.toFixed(1)}°C</span>
               </div>
               ` : ''}
-              <div style="display: flex; justify-content: space-between;">
-                <span style="color: #64748b; font-weight: 700; text-transform: uppercase;">Zone:</span>
-                <span style="font-weight: 700;">${asset.zone}</span>
+              <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 2px solid #e2e8f0; margin-top: 4px;">
+                <span style="color: #64748b; font-weight: 700; text-transform: uppercase; font-size: 10px;">Health Index:</span>
+                <span style="font-weight: 900; font-size: 16px; color: ${markerColor}">${asset.healthScore}%</span>
               </div>
-              <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 6px; border-top: 1px dashed #e2e8f0; margin-top: 2px;">
-                <span style="color: #64748b; font-weight: 700; text-transform: uppercase;">Health Index:</span>
-                <span style="font-weight: 900; font-size: 14px; color: ${markerColor}">${asset.healthScore}%</span>
+              ${asset.healthScore < 30 ? `
+              <div style="margin-top: 6px; padding: 4px 6px; background: #fee2e2; border-left: 3px solid #ef4444; border-radius: 3px;">
+                <span style="font-size: 9px; font-weight: 700; color: #dc2626; text-transform: uppercase;">⚠️ Critical Alert</span>
               </div>
+              ` : ''}
             </div>
           </div>
         `;
 
+        // Enhanced tooltip with more details
         marker.bindTooltip(`
-          <div style="font-weight: 900; font-size: 10px; color: #1e293b; padding: 2px 4px;">
-            ${asset.name}<br/>
-            <span style="font-size: 8px; font-weight: 700; color: #64748b;">${asset.type.toUpperCase()}</span>
+          <div style="font-weight: 900; font-size: 11px; color: #1e293b; padding: 4px 6px; line-height: 1.4;">
+            <div style="font-size: 12px; margin-bottom: 2px;">${asset.name}</div>
+            <div style="font-size: 9px; font-weight: 700; color: #64748b; text-transform: uppercase;">
+              ${asset.type} • ${asset.healthScore}% Health
+            </div>
           </div>
         `, { 
           permanent: false, 
           direction: 'top',
-          offset: [0, -10],
-          opacity: 0.9
+          offset: [0, -15],
+          opacity: 0.95,
+          className: 'custom-map-tooltip'
         });
 
         marker.bindPopup(popupContent, {
